@@ -11,7 +11,10 @@ export const handleCashfreeWebhook = async (req: Request, res: Response) => {
     // Use raw body for signature verification
     const rawBody = (req as any).rawBody || JSON.stringify(req.body);
 
-    if (!verifyCashfreeSignature(rawBody, signature, webhookSecret)) {
+    const isVerified = verifyCashfreeSignature(rawBody, signature, webhookSecret);
+    console.log(`[Webhook] Signature verification: ${isVerified ? 'PASSED' : 'FAILED'}`);
+
+    if (!isVerified) {
         console.error('Invalid signature for Cashfree webhook');
         return res.status(401).json({ message: 'Invalid signature' });
     }

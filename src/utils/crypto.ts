@@ -4,7 +4,7 @@ export function verifyCashfreeSignature(payload: string, signature: string, secr
     const expectedSignature = crypto
         .createHmac('sha256', secret)
         .update(payload)
-        .digest('base64');
+        .digest('hex');
 
-    return expectedSignature === signature;
+    return expectedSignature.toLowerCase() === signature?.toLowerCase();
 }
