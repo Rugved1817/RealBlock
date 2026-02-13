@@ -11,7 +11,11 @@ export const handleCashfreeWebhook = async (req: Request, res: Response) => {
     // Use raw body for signature verification
     const rawBody = (req as any).rawBody || JSON.stringify(req.body);
 
-    const isVerified = verifyCashfreeSignature(rawBody, signature, webhookSecret);
+    console.log('[Webhook] Headers:', JSON.stringify(req.headers));
+    console.log('[Webhook] Raw Body Length:', rawBody?.length);
+    console.log('[Webhook] Signature Header:', signature);
+
+    const isVerified = verifyCashfreeSignature(rawBody, signature || '', webhookSecret);
     console.log(`[Webhook] Signature verification: ${isVerified ? 'PASSED' : 'FAILED'}`);
 
     if (!isVerified) {
