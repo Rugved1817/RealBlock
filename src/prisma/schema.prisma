@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  isKycVerified Boolean     @default(false)
+  kycProfile    KycProfile?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model KycProfile {
+  id            String           @id @default(uuid())
+  userId        String           @unique
+  user          User             @relation(fields: [userId], references: [id])
+  overallStatus OverallKycStatus @default(NOT_STARTED)
+  completedAt   DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  verifications KycVerification[]
+}
+
+model KycVerification {
+  id                String             @id @default(uuid())
+  userId            String
+  profileId         String
+  profile           KycProfile         @relation(fields: [profileId], references: [id])
+  type              VerificationType
+  providerRefId     String?
+  status            VerificationStatus
+  failureReason     String?
+  metadata          Json?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([providerRefId])
+}
+
+enum VerificationType {
+  PAN
+  AADHAAR
+  BANK
+}
+
+enum VerificationStatus {
+  INITIATED
+  PENDING
+  VERIFIED
+  FAILED
+  REJECTED
+}
+
+enum OverallKycStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}

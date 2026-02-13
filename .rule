@@ -1,0 +1,245 @@
+# RULE: Build Production-Grade Multi-Step KYC Module
+# Stack: Express + tRPC + trpc-to-openapi + Prisma + PostgreSQL + ethers.js
+
+-------------------------------------------------
+## 1. ARCHITECTURE REQUIREMENTS
+
+Follow modular layered structure:
+
+src/
+ ├── server.ts
+ ├── app.ts
+ ├── config/
+ ├── modules/
+ │    ├── kyc/
+ │    │    ├── kyc.router.ts
+ │    │    ├── kyc.service.ts
+ │    │    ├── kyc.repository.ts
+ │    │    ├── kyc.types.ts
+ │    │    ├── kyc.validator.ts
+ │    │    ├── kyc.webhook.ts
+ │    │    └── providers/
+ │    │         └── cashfree.provider.ts
+ ├── middleware/
+ ├── utils/
+ ├── prisma/
+
+Use:
+- Zod for validation
+- Prisma ORM
+- HMAC SHA256 signature validation
+- Environment variable config
+- Proper error handling layer
+
+-------------------------------------------------
+## 2. DATABASE DESIGN (Prisma Schema)
+
+model KycProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  overallStatus OverallKycStatus @default(NOT_STARTED)
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  verifications KycVerification[]
+}
+
+model KycVerification {
+  id                String   @id @default(uuid())
+  userId            String
+  type              VerificationType
+  providerRefId     String?
+  status            VerificationStatus
+  failureReason     String?
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([providerRefId])
+}
+
+enum VerificationType {
+  PAN
+  AADHAAR
+  BANK
+}
+
+enum VerificationStatus {
+  INITIATED
+  PENDING
+  VERIFIED
+  FAILED
+  REJECTED
+}
+
+enum OverallKycStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+-------------------------------------------------
+## 3. KYC SERVICE LOGIC
+
+KYC must be multi-stage:
+
+Required to complete:
+- PAN VERIFIED
+- AADHAAR VERIFIED
+- BANK VERIFIED
+
+Only after all verified:
+→ overallStatus = COMPLETED
+→ user.isKycVerified = true
+
+-------------------------------------------------
+## 4. PAN VERIFICATION (tRPC Procedure)
+
+Procedure: kyc.panVerify
+
+Input:
+{
+  panNumber: string
+}
+
+Steps:
+1. Validate PAN using Zod regex
+2. Create KycVerification record (INITIATED)
+3. Call Cashfree PAN API
+4. Update status to VERIFIED or FAILED
+5. Update KycProfile
+
+Return:
+{
+  status: "VERIFIED"
+}
+
+-------------------------------------------------
+## 5. AADHAAR OTP FLOW
+
+Procedure 1: kyc.aadhaarInitiate
+
+Input:
+{
+  aadhaarNumber: string
+}
+
+Steps:
+1. Create verification record
+2. Call Cashfree OTP initiate
+3. Save providerRefId
+4. status → PENDING
+
+Return:
+{
+  referenceId: string
+}
+
+--------------------------------
+
+Procedure 2: kyc.aadhaarConfirm
+
+Input:
+{
+  referenceId: string
+  otp: string
+}
+
+Steps:
+1. Validate record
+2. Call Cashfree verify OTP
+3. Update to VERIFIED
+4. Save demographic data in metadata
+5. Update profile
+
+-------------------------------------------------
+## 6. BANK VERIFICATION (Penny Drop)
+
+Procedure: kyc.bankVerify
+
+Input:
+{
+  accountNumber: string
+  ifsc: string
+  accountHolderName: string
+}
+
+Steps:
+1. Create verification record
+2. Call Cashfree penny drop API
+3. Validate name match
+4. Update status
+
+Store:
+- bankName
+- nameMatchScore
+
+-------------------------------------------------
+## 7. WEBHOOK (Express Endpoint)
+
+Route:
+POST /webhooks/cashfree/kyc
+
+NOT a tRPC route.
+
+Steps:
+1. Validate HMAC signature
+2. Ensure idempotency
+3. Find verification by providerRefId
+4. Update status accordingly
+5. Always return 200 if signature valid
+
+-------------------------------------------------
+## 8. SECURITY
+
+- Mask Aadhaar before storing
+- Encrypt bank account number
+- Never log raw Aadhaar
+- Validate webhook signature
+- Use rate limiting middleware
+- Add correlation ID logging
+
+-------------------------------------------------
+## 9. tRPC + OpenAPI
+
+Use trpc-to-openapi:
+- Expose public KYC endpoints
+- Document request & response schemas
+- Generate OpenAPI spec
+
+-------------------------------------------------
+## 10. ethers.js INTEGRATION REQUIREMENT
+
+Before token purchase:
+
+Procedure: token.purchase
+
+Must:
+1. Check user.isKycVerified
+2. If false → throw TRPCError("FORBIDDEN")
+
+Only allow blockchain transaction if KYC completed.
+
+-------------------------------------------------
+## 11. DO NOT
+
+- Do not expose providerRefId to frontend
+- Do not allow re-verification after VERIFIED
+- Do not trust webhook without signature
+- Do not block event loop with heavy crypto
+
+-------------------------------------------------
+
+Generate:
+- Prisma schema
+- tRPC router
+- Express webhook route
+- Service layer
+- Cashfree provider class
+- Signature validation utility
+- Zod schemas
+- Example .env file
+- Dependency wiring

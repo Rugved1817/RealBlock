@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+*.db
+*.db-journal
+openapi-spec.json
+seed.js
+package-lock.json
