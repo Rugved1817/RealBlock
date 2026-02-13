@@ -26,6 +26,11 @@ app.use(helmet());
 app.use(compression());
 app.use(morgan('dev'));
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Webhook route (Must be before tRPC)
 app.post('/webhooks/cashfree/kyc', handleCashfreeWebhook);
 
