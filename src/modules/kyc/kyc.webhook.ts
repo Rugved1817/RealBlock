@@ -5,17 +5,44 @@ import { kycService } from '../../services/kyc.service.js';
 import { VerificationStatus } from '@prisma/client';
 
 export const handleCashfreeWebhook = async (req: Request, res: Response) => {
-    const signature = req.headers['x-cashfree-signature'] as string;
+    const signatureHeaders = [
+        'x-cashfree-signature',
+        'x-webhook-signature',
+        'x-cf-signature',
+        'signature',
+        'x-signature'
+    ];
+
+    let signature: string | undefined;
+    for (const h of signatureHeaders) {
+        if (req.headers[h]) {
+            signature = req.headers[h] as string;
+            console.log(`[Webhook] Found signature in header: ${h}`);
+            break;
+        }
+    }
+
     const webhookSecret = process.env.CASHFREE_WEBHOOK_SECRET || '';
 
     // Use raw body for signature verification
     const rawBody = (req as any).rawBody || JSON.stringify(req.body);
 
-    console.log('[Webhook] Headers:', JSON.stringify(req.headers));
+    console.log('[Webhook] All Header Keys:', Object.keys(req.headers).join(', '));
+    console.log('[Webhook] Body:', JSON.stringify(req.body));
     console.log('[Webhook] Raw Body Length:', rawBody?.length);
-    console.log('[Webhook] Signature Header:', signature);
+    console.log('[Webhook] Selected Signature:', signature);
 
-    const isVerified = verifyCashfreeSignature(rawBody, signature || '', webhookSecret);
+    if (!signature) {
+        console.warn('[Webhook] No signature header found. Checking if this is a test event...');
+        // Some Cashfree products use event or type 'test_webhook'
+        if (req.body?.type?.includes('test') || req.body?.event?.includes('test')) {
+            console.log('[Webhook] Test event detected. Responding 200 OK for verification.');
+            return res.status(200).json({ message: 'Test success' });
+        }
+        return res.status(401).json({ message: 'Signature missing' });
+    }
+
+    const isVerified = verifyCashfreeSignature(rawBody, signature, webhookSecret);
     console.log(`[Webhook] Signature verification: ${isVerified ? 'PASSED' : 'FAILED'}`);
 
     if (!isVerified) {
