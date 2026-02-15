@@ -22,6 +22,12 @@ export const handleCashfreeWebhook = async (req: Request, res: Response) => {
         }
     }
 
+    // Cashfree sometimes puts signature in the body
+    if (!signature && req.body?.signature) {
+        signature = req.body.signature;
+        console.log('[Webhook] Found signature in body');
+    }
+
     const webhookSecret = process.env.CASHFREE_WEBHOOK_SECRET || '';
 
     // Use raw body for signature verification
@@ -33,10 +39,15 @@ export const handleCashfreeWebhook = async (req: Request, res: Response) => {
     console.log('[Webhook] Selected Signature:', signature);
 
     if (!signature) {
-        console.warn('[Webhook] No signature header found. Checking if this is a test event...');
-        // Some Cashfree products use event or type 'test_webhook'
-        if (req.body?.type?.includes('test') || req.body?.event?.includes('test')) {
-            console.log('[Webhook] Test event detected. Responding 200 OK for verification.');
+        console.warn('[Webhook] No signature found. Checking if this is a test event...');
+
+        const eventType = (req.body?.type || req.body?.event || '').toLowerCase();
+        const isTestEvent =
+            eventType.includes('test') ||
+            eventType === 'low_balance_alert';
+
+        if (isTestEvent) {
+            console.log('[Webhook] Test/Alert event detected. Responding 200 OK for verification.');
             return res.status(200).json({ message: 'Test success' });
         }
         return res.status(401).json({ message: 'Signature missing' });
