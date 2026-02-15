@@ -15,11 +15,18 @@ export const createContext = async ({
     // For this implementation, we'll simulate a user for testing
     const authHeader = req.headers.authorization;
     if (authHeader) {
-        if (authHeader === 'dummy-id') {
+        // Extract token: handle both "Bearer token" and "token" formats
+        const token = authHeader.startsWith('Bearer ')
+            ? authHeader.substring(7)
+            : authHeader;
+
+        // Special test bypass
+        if (token === 'dummy-id') {
             return { user: { id: 'dummy-id', email: 'test@example.com' } };
         }
-        // Basic simulation: id is the auth header
-        const user = await prisma.user.findUnique({ where: { id: authHeader } });
+
+        // Basic simulation: token is the user ID
+        const user = await prisma.user.findUnique({ where: { id: token } });
         if (user) {
             return { user: { id: user.id, email: user.email } };
         }
