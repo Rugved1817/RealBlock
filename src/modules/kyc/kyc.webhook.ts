@@ -5,6 +5,19 @@ import { kycService } from '../../services/kyc.service.js';
 import { VerificationStatus } from '@prisma/client';
 
 export const handleCashfreeWebhook = async (req: Request, res: Response) => {
+    // PRIORITY 1: Check for test/monitoring events FIRST
+    const eventType = (req.body?.type || req.body?.event || '').toLowerCase();
+    const isTestEvent =
+        eventType.includes('test') ||
+        eventType === 'low_balance_alert';
+
+    if (isTestEvent) {
+        console.log('[Webhook] Test/Alert event detected:', eventType);
+        console.log('[Webhook] Responding 200 OK for URL verification.');
+        return res.status(200).json({ message: 'Webhook URL verified', event: eventType });
+    }
+
+    // PRIORITY 2: For real KYC events, verify signatures
     const signatureHeaders = [
         'x-cashfree-signature',
         'x-webhook-signature',
@@ -22,35 +35,16 @@ export const handleCashfreeWebhook = async (req: Request, res: Response) => {
         }
     }
 
-    // Cashfree sometimes puts signature in the body
-    if (!signature && req.body?.signature) {
-        signature = req.body.signature;
-        console.log('[Webhook] Found signature in body');
-    }
-
     const webhookSecret = process.env.CASHFREE_WEBHOOK_SECRET || '';
-
-    // Use raw body for signature verification
     const rawBody = (req as any).rawBody || JSON.stringify(req.body);
 
-    console.log('[Webhook] All Header Keys:', Object.keys(req.headers).join(', '));
+    console.log('[Webhook] Processing KYC event');
     console.log('[Webhook] Body:', JSON.stringify(req.body));
-    console.log('[Webhook] Raw Body Length:', rawBody?.length);
-    console.log('[Webhook] Selected Signature:', signature);
+    console.log('[Webhook] Signature:', signature);
 
     if (!signature) {
-        console.warn('[Webhook] No signature found. Checking if this is a test event...');
-
-        const eventType = (req.body?.type || req.body?.event || '').toLowerCase();
-        const isTestEvent =
-            eventType.includes('test') ||
-            eventType === 'low_balance_alert';
-
-        if (isTestEvent) {
-            console.log('[Webhook] Test/Alert event detected. Responding 200 OK for verification.');
-            return res.status(200).json({ message: 'Test success' });
-        }
-        return res.status(401).json({ message: 'Signature missing' });
+        console.error('[Webhook] Signature missing for KYC event');
+        return res.status(401).json({ message: 'Signature required for KYC events' });
     }
 
     const isVerified = verifyCashfreeSignature(rawBody, signature, webhookSecret);
