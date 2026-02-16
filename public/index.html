@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -197,7 +198,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .response-box {
@@ -244,6 +247,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>🏛️ RealBlock KYC</h1>
@@ -320,7 +324,7 @@
 
             // For testing, use the test user token
             currentToken = 'test-user-12345';
-            
+
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('appSection').classList.remove('hidden');
             document.getElementById('userId').textContent = currentToken;
@@ -340,12 +344,14 @@
                     }
                 });
 
-                if (!response.ok) {
-                    throw new Error('Failed to fetch KYC status');
-                }
-
                 const data = await response.json();
-                updateKycBadge(data.result.data.overallStatus);
+
+                if (response.ok && data.result && data.result.data) {
+                    updateKycBadge(data.result.data.overallStatus);
+                } else {
+                    // If no KYC profile exists yet, default to NOT_STARTED
+                    updateKycBadge('NOT_STARTED');
+                }
             } catch (error) {
                 console.error('Error checking KYC status:', error);
                 updateKycBadge('NOT_STARTED');
@@ -358,7 +364,7 @@
             let className = 'badge ';
             let text = '';
 
-            switch(status) {
+            switch (status) {
                 case 'COMPLETED':
                     className += 'verified';
                     text = '✓ Verified';
@@ -404,11 +410,13 @@
 
                 const data = await response.json();
 
-                if (response.ok) {
+                if (response.ok && data.result && data.result.data) {
                     showResponse(responseDiv, '✅ PAN verification initiated! Reference ID: ' + data.result.data.referenceId, 'success');
+                    showResponseBox(responseDiv, data);
                     setTimeout(checkKycStatus, 2000);
                 } else {
-                    showResponse(responseDiv, '❌ Error: ' + (data.error?.message || 'Verification failed'), 'error');
+                    const errorMsg = data.message || data.error?.message || 'Verification failed';
+                    showResponse(responseDiv, '❌ Error: ' + errorMsg, 'error');
                     showResponseBox(responseDiv, data);
                 }
             } catch (error) {
@@ -447,14 +455,17 @@
 
                 const data = await response.json();
 
-                if (response.ok) {
+                if (response.ok && data.result) {
                     showResponse(responseDiv, '✅ Token purchase successful!', 'success');
                     showResponseBox(responseDiv, data);
                 } else {
-                    if (data.error?.code === 'FORBIDDEN') {
+                    const errorCode = data.error?.code || data.code;
+                    const errorMsg = data.message || data.error?.message || 'Purchase failed';
+
+                    if (errorCode === 'FORBIDDEN' || errorMsg.includes('KYC')) {
                         showResponse(responseDiv, '🚫 KYC verification required! Please complete your KYC first.', 'warning');
                     } else {
-                        showResponse(responseDiv, '❌ Error: ' + (data.error?.message || 'Purchase failed'), 'error');
+                        showResponse(responseDiv, '❌ Error: ' + errorMsg, 'error');
                     }
                     showResponseBox(responseDiv, data);
                 }
@@ -489,10 +500,11 @@
                 document.getElementById(t + 'Tab').classList.remove('active');
             });
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            
+
             document.getElementById(tab + 'Tab').classList.add('active');
             event.target.classList.add('active');
         }
     </script>
 </body>
+
 </html>
