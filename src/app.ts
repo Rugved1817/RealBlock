@@ -28,12 +28,12 @@ app.use(helmet({
 app.use(compression());
 app.use(morgan('dev'));
 
-// Serve static files from public directory
-app.use(express.static('public'));
+// Serve static files from dist/public directory (copied during build)
+app.use(express.static('dist/public'));
 
 // Root redirect to frontend
 app.get('/', (req, res) => {
-    res.redirect('/index.html');
+    res.sendFile('index.html', { root: 'dist/public' });
 });
 
 // Health check endpoint

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon --exec ts-node --esm src/server.ts",
-    "build": "tsc",
+    "build": "tsc && cp -r public dist/",
     "render:build": "npm install && npm run prisma:generate && prisma migrate deploy --schema=src/prisma/schema.prisma && npm run build && npm run seed:prod",
     "start": "node dist/server.js",
     "seed:prod": "node seed-production.js",
