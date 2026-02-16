@@ -1,8 +1,11 @@
 import { z } from 'zod';
 
 export const PanVerifySchema = z.object({
-    panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format"),
-    name: z.string().min(1, "Name is required"),
+    panNumber: z.string()
+        .trim()
+        .toUpperCase()
+        .regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format"),
+    name: z.string().trim().min(1, "Name is required"),
 });
 
 export const AadhaarInitiateSchema = z.object({
