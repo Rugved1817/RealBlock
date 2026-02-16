@@ -20,14 +20,17 @@ export const createContext = async ({
             ? authHeader.substring(7)
             : authHeader;
 
-        // For any test/dummy token, auto-create test user
+        // For any test/dummy token, auto-create user with that token as ID
         if (token === 'dummy-id' || token.startsWith('test-')) {
+            // Generate email based on token to ensure uniqueness
+            const emailFromToken = token + '@realblock.com';
+
             const testUser = await prisma.user.upsert({
-                where: { email: 'test@realblock.com' },
+                where: { id: token },
                 update: {},
                 create: {
-                    id: 'test-user-12345',
-                    email: 'test@realblock.com',
+                    id: token,
+                    email: emailFromToken,
                     isKycVerified: false,
                 },
             });
