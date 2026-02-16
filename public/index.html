@@ -411,9 +411,22 @@
                 const data = await response.json();
 
                 if (response.ok && data.result && data.result.data) {
-                    showResponse(responseDiv, '✅ PAN verification initiated! Reference ID: ' + data.result.data.referenceId, 'success');
+                    const result = data.result.data;
+
+                    if (result.status === 'VERIFIED') {
+                        let message = '✅ PAN Verified Successfully!';
+                        if (result.referenceId) {
+                            message += `\n📋 Reference ID: ${result.referenceId}`;
+                        }
+                        if (result.registeredName) {
+                            message += `\n👤 Registered Name: ${result.registeredName}`;
+                        }
+                        showResponse(responseDiv, message, 'success');
+                        setTimeout(checkKycStatus, 1000);
+                    } else {
+                        showResponse(responseDiv, '❌ PAN verification failed. Please check your details.', 'error');
+                    }
                     showResponseBox(responseDiv, data);
-                    setTimeout(checkKycStatus, 2000);
                 } else {
                     const errorMsg = data.message || data.error?.message || 'Verification failed';
                     showResponse(responseDiv, '❌ Error: ' + errorMsg, 'error');
