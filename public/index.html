@@ -322,8 +322,13 @@
                 return;
             }
 
-            // For testing, use the test user token
-            currentToken = 'test-user-12345';
+            // Generate a unique token based on email
+            // Use a simple hash of the email for testing
+            const emailHash = email.split('').reduce((hash, char) => {
+                return ((hash << 5) - hash) + char.charCodeAt(0);
+            }, 0);
+
+            currentToken = 'test-user-' + Math.abs(emailHash);
 
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('appSection').classList.remove('hidden');
