@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RealBlock - KYC Verification</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .badge.verified {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .user-info p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .user-info strong {
+            color: #333;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.6s linear infinite;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .response-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏛️ RealBlock KYC</h1>
+        <p class="subtitle">Complete your KYC verification to purchase tokens</p>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="section">
+            <div class="section-title">Login to Your Account</div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="loginEmail" value="test@realblock.com" placeholder="Enter your email">
+            </div>
+            <button onclick="login()">Login</button>
+        </div>
+
+        <!-- Main App (Hidden until login) -->
+        <div id="appSection" class="hidden">
+            <!-- User Info -->
+            <div class="user-info">
+                <p><strong>User ID:</strong> <span id="userId"></span></p>
+                <p><strong>Email:</strong> <span id="userEmail"></span></p>
+                <p><strong>KYC Status:</strong> <span id="kycStatusBadge"></span></p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('kyc')">KYC Verification</button>
+                <button class="tab-btn" onclick="switchTab('token')">Buy Tokens</button>
+            </div>
+
+            <!-- KYC Tab -->
+            <div id="kycTab" class="tab-content active">
+                <div class="section-title">Verify Your PAN</div>
+                <div class="form-group">
+                    <label>PAN Number</label>
+                    <input type="text" id="panNumber" placeholder="ABCDE1234F" maxlength="10">
+                </div>
+                <div class="form-group">
+                    <label>Full Name (as per PAN)</label>
+                    <input type="text" id="panName" placeholder="John Doe">
+                </div>
+                <button onclick="verifyPan()" id="panBtn">Verify PAN</button>
+                <div id="panResponse"></div>
+            </div>
+
+            <!-- Token Purchase Tab -->
+            <div id="tokenTab" class="tab-content">
+                <div class="section-title">Purchase Real Estate Tokens</div>
+                <div class="form-group">
+                    <label>Token ID</label>
+                    <input type="text" id="tokenId" placeholder="property-token-001">
+                </div>
+                <div class="form-group">
+                    <label>Amount</label>
+                    <input type="number" id="tokenAmount" placeholder="100" min="1">
+                </div>
+                <button onclick="purchaseToken()" id="tokenBtn">Purchase Tokens</button>
+                <div id="tokenResponse"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://realblock.onrender.com/api';
+        let currentToken = '';
+
+        // Login function
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            if (!email) {
+                alert('Please enter your email');
+                return;
+            }
+
+            // For testing, use the test user token
+            currentToken = 'test-user-12345';
+            
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('appSection').classList.remove('hidden');
+            document.getElementById('userId').textContent = currentToken;
+            document.getElementById('userEmail').textContent = email;
+
+            // Check KYC status
+            await checkKycStatus();
+        }
+
+        // Check KYC Status
+        async function checkKycStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/kyc/status`, {
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch KYC status');
+                }
+
+                const data = await response.json();
+                updateKycBadge(data.result.data.overallStatus);
+            } catch (error) {
+                console.error('Error checking KYC status:', error);
+                updateKycBadge('NOT_STARTED');
+            }
+        }
+
+        // Update KYC Status Badge
+        function updateKycBadge(status) {
+            const badge = document.getElementById('kycStatusBadge');
+            let className = 'badge ';
+            let text = '';
+
+            switch(status) {
+                case 'COMPLETED':
+                    className += 'verified';
+                    text = '✓ Verified';
+                    break;
+                case 'PENDING':
+                    className += 'pending';
+                    text = '⏳ Pending';
+                    break;
+                default:
+                    className += 'failed';
+                    text = '✗ Not Verified';
+            }
+
+            badge.className = className;
+            badge.textContent = text;
+        }
+
+        // Verify PAN
+        async function verifyPan() {
+            const panNumber = document.getElementById('panNumber').value.toUpperCase();
+            const name = document.getElementById('panName').value;
+            const btn = document.getElementById('panBtn');
+            const responseDiv = document.getElementById('panResponse');
+
+            if (!panNumber || !name) {
+                showResponse(responseDiv, 'Please fill in all fields', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = 'Verifying<span class="loading"></span>';
+            responseDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/kyc/pan-verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ panNumber, name })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResponse(responseDiv, '✅ PAN verification initiated! Reference ID: ' + data.result.data.referenceId, 'success');
+                    setTimeout(checkKycStatus, 2000);
+                } else {
+                    showResponse(responseDiv, '❌ Error: ' + (data.error?.message || 'Verification failed'), 'error');
+                    showResponseBox(responseDiv, data);
+                }
+            } catch (error) {
+                showResponse(responseDiv, '❌ Network error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Verify PAN';
+            }
+        }
+
+        // Purchase Token
+        async function purchaseToken() {
+            const tokenId = document.getElementById('tokenId').value;
+            const amount = document.getElementById('tokenAmount').value;
+            const btn = document.getElementById('tokenBtn');
+            const responseDiv = document.getElementById('tokenResponse');
+
+            if (!tokenId || !amount) {
+                showResponse(responseDiv, 'Please fill in all fields', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = 'Processing<span class="loading"></span>';
+            responseDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/kyc/token/purchase`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ tokenId, amount: parseInt(amount) })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResponse(responseDiv, '✅ Token purchase successful!', 'success');
+                    showResponseBox(responseDiv, data);
+                } else {
+                    if (data.error?.code === 'FORBIDDEN') {
+                        showResponse(responseDiv, '🚫 KYC verification required! Please complete your KYC first.', 'warning');
+                    } else {
+                        showResponse(responseDiv, '❌ Error: ' + (data.error?.message || 'Purchase failed'), 'error');
+                    }
+                    showResponseBox(responseDiv, data);
+                }
+            } catch (error) {
+                showResponse(responseDiv, '❌ Network error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Purchase Tokens';
+            }
+        }
+
+        // Helper: Show response message
+        function showResponse(div, message, type) {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            div.appendChild(statusDiv);
+        }
+
+        // Helper: Show JSON response
+        function showResponseBox(div, data) {
+            const responseBox = document.createElement('div');
+            responseBox.className = 'response-box';
+            responseBox.innerHTML = '<strong>API Response:</strong><br>' + JSON.stringify(data, null, 2);
+            div.appendChild(responseBox);
+        }
+
+        // Tab switching
+        function switchTab(tab) {
+            const tabs = ['kyc', 'token'];
+            tabs.forEach(t => {
+                document.getElementById(t + 'Tab').classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById(tab + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

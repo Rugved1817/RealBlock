@@ -22,9 +22,19 @@ app.use(express.json({
 }));
 
 app.use(cors());
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false, // Allow inline scripts for the frontend
+}));
 app.use(compression());
 app.use(morgan('dev'));
+
+// Serve static files from public directory
+app.use(express.static('public'));
+
+// Root redirect to frontend
+app.get('/', (req, res) => {
+    res.redirect('/index.html');
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
