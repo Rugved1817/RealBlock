@@ -28,7 +28,9 @@ export class KycService {
 
         try {
             const result = await cashfreeProvider.verifyPan(panNumber, name);
-            const isVerified = result.status === 'VALID' || result.status === 'SUCCESS';
+
+            // Cashfree returns { valid: true/false } for PAN verification
+            const isVerified = result.valid === true || result.status === 'VALID' || result.status === 'SUCCESS';
 
             await kycRepository.updateVerification(verification.id, {
                 status: isVerified ? VerificationStatus.VERIFIED : VerificationStatus.FAILED,
@@ -39,7 +41,11 @@ export class KycService {
                 await this.checkAndCompleteKyc(profile.id, userId);
             }
 
-            return { status: isVerified ? 'VERIFIED' : 'FAILED' };
+            return {
+                status: isVerified ? 'VERIFIED' : 'FAILED',
+                referenceId: result.reference_id,
+                registeredName: result.registered_name,
+            };
         } catch (error: any) {
             await kycRepository.updateVerification(verification.id, {
                 status: VerificationStatus.FAILED,
