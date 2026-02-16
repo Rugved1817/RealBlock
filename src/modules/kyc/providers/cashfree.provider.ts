@@ -19,12 +19,15 @@ export class CashfreeKycProvider {
 
     async verifyPan(pan: string, name: string) {
         try {
+            console.log('[Cashfree] Verifying PAN:', { pan, name });
             const response = await this.client.post('/pan', {
                 pan,
                 name,
             });
+            console.log('[Cashfree] PAN Response:', JSON.stringify(response.data, null, 2));
             return response.data;
         } catch (error: any) {
+            console.error('[Cashfree] PAN Error:', error.response?.data || error.message);
             throw new Error(`Cashfree PAN Verification failed: ${error.response?.data?.message || error.message}`);
         }
     }
