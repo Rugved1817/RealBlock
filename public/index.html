@@ -414,23 +414,24 @@
                 });
 
                 const data = await response.json();
+                console.log('Full API Response:', data);
 
-                if (response.ok && data.result && data.result.data) {
-                    const result = data.result.data;
+                // Extract the actual result - could be in data.result.data or data directly
+                const result = data.result?.data || data;
 
-                    if (result.status === 'VERIFIED') {
-                        let message = '✅ PAN Verified Successfully!';
-                        if (result.referenceId) {
-                            message += `\n📋 Reference ID: ${result.referenceId}`;
-                        }
-                        if (result.registeredName) {
-                            message += `\n👤 Registered Name: ${result.registeredName}`;
-                        }
-                        showResponse(responseDiv, message, 'success');
-                        setTimeout(checkKycStatus, 1000);
-                    } else {
-                        showResponse(responseDiv, '❌ PAN verification failed. Please check your details.', 'error');
+                if (response.ok && result && result.status === 'VERIFIED') {
+                    let message = '✅ PAN Verified Successfully!';
+                    if (result.referenceId) {
+                        message += `\n📋 Reference ID: ${result.referenceId}`;
                     }
+                    if (result.registeredName) {
+                        message += `\n👤 Registered Name: ${result.registeredName}`;
+                    }
+                    showResponse(responseDiv, message, 'success');
+                    showResponseBox(responseDiv, data);
+                    setTimeout(checkKycStatus, 1000);
+                } else if (response.ok && result && result.status === 'FAILED') {
+                    showResponse(responseDiv, '❌ PAN verification failed. Please check your details.', 'error');
                     showResponseBox(responseDiv, data);
                 } else {
                     const errorMsg = data.message || data.error?.message || 'Verification failed';
