@@ -1,7 +1,10 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { CreateExpressContextOptions } from '@trpc/server/adapters/express';
 import { OpenApiMeta } from 'trpc-to-openapi';
+import jwt from 'jsonwebtoken';
 import prisma from '../prisma/client.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 export type Context = {
     user?: { id: string; email: string };
@@ -11,8 +14,6 @@ export const createContext = async ({
     req,
     res,
 }: CreateExpressContextOptions): Promise<Context> => {
-    // In a real app, you would verify a JWT here
-    // For this implementation, we'll simulate a user for testing
     const authHeader = req.headers.authorization;
     if (authHeader) {
         // Extract token: handle both "Bearer token" and "token" formats
@@ -20,9 +21,8 @@ export const createContext = async ({
             ? authHeader.substring(7)
             : authHeader;
 
-        // For any test/dummy token, auto-create user with that token as ID
+        // For test tokens, auto-create user with that token as ID
         if (token === 'dummy-id' || token.startsWith('test-')) {
-            // Generate email based on token to ensure uniqueness
             const emailFromToken = token + '@realblock.com';
 
             const testUser = await prisma.user.upsert({
@@ -37,10 +37,22 @@ export const createContext = async ({
             return { user: { id: testUser.id, email: testUser.email } };
         }
 
-        // Basic simulation: token is the user ID
-        const user = await prisma.user.findUnique({ where: { id: token } });
-        if (user) {
-            return { user: { id: user.id, email: user.email } };
+        // Try to verify as JWT
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET) as {
+                userId: string;
+                email: string;
+            };
+            const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+            if (user) {
+                return { user: { id: user.id, email: user.email } };
+            }
+        } catch {
+            // If JWT verification fails, try as user ID (backward compatibility)
+            const user = await prisma.user.findUnique({ where: { id: token } });
+            if (user) {
+                return { user: { id: user.id, email: user.email } };
+            }
         }
     }
     return {};
