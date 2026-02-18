@@ -2,11 +2,14 @@ import prisma from '../../prisma/client.js';
 
 export class PropertyService {
     async getAllProperties() {
-        return await prisma.property.findMany({
+        console.log('Fetching all properties...');
+        const props = await prisma.property.findMany({
             orderBy: {
                 createdAt: 'desc'
             }
         });
+        console.log(`Found ${props.length} properties`);
+        return props;
     }
 
     async getFeaturedProperties() {

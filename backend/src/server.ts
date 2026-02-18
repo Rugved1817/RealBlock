@@ -13,6 +13,7 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const port = process.env.PORT || 4000;
 
 app.listen(port, async () => {
+    // Force restart comment
     try {
         // Write OpenAPI spec to file on start
         const specPath = path.join(__dirname, '../openapi-spec.json');
