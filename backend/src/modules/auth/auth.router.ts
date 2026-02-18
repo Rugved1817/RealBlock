@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { router, publicProcedure } from '../../trpc/trpc.js';
+import { router, publicProcedure, protectedProcedure } from '../../trpc/trpc.js';
+import { TRPCError } from '@trpc/server';
 import { LoginSchema, SignupSchema } from './auth.validator.js';
 import { authService } from './auth.service.js';
 
@@ -30,5 +31,24 @@ export const authRouter = router({
         }))
         .mutation(async ({ input }) => {
             return await authService.login(input.email, input.password);
+        }),
+
+    me: protectedProcedure
+        .meta({ openapi: { method: 'GET', path: '/auth/me', tags: ['auth'] } })
+        .output(z.object({
+            id: z.string(),
+            email: z.string(),
+            name: z.string().nullable(),
+            isKycVerified: z.boolean(),
+        }))
+        .query(async ({ ctx }) => {
+            const user = await authService.getUserById(ctx.user!.id);
+            if (!user) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'User not found',
+                });
+            }
+            return user;
         }),
 });

@@ -67,3 +67,34 @@ enum OverallKycStatus {
   COMPLETED
   REJECTED
 }
+
+model Property {
+  id            String         @id @default(uuid())
+  name          String
+  location      String
+  type          PropertyType
+  assetValue    String
+  irr           String
+  yield         String
+  progress      Int            @default(0)
+  minInvestment String
+  image         String
+  status        PropertyStatus @default(OPEN)
+  isFeatured    Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+enum PropertyStatus {
+  OPEN
+  FULLY_FUNDED
+  CLOSED
+  FUNDED
+}
+
+enum PropertyType {
+  COMMERCIAL
+  WAREHOUSING
+  RESIDENTIAL
+  WAREHOUSE
+}

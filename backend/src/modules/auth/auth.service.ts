@@ -75,6 +75,19 @@ export class AuthService {
             throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid token' });
         }
     }
+
+    async getUserById(id: string) {
+        const user = await prisma.user.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                isKycVerified: true,
+            }
+        });
+        return user;
+    }
 }
 
 export const authService = new AuthService();
