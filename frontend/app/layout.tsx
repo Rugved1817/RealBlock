@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   description: "Invest in tokenized real estate with blockchain technology",
 };
 
+import Navbar from "@/components/Navbar";
+import AIAssistantWidget from "@/components/AIAssistantWidget";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -14,6 +17,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <Navbar />
+        <AIAssistantWidget />
         {children}
       </body>
     </html>

@@ -51,4 +51,54 @@ export const authRouter = router({
             }
             return user;
         }),
+
+    dashboard: protectedProcedure
+        .meta({ openapi: { method: 'GET', path: '/auth/dashboard', tags: ['auth'] } })
+        .output(z.object({
+            totalInvestment: z.number(),
+            totalSqft: z.number(),
+            propertyCount: z.number(),
+            transactions: z.array(z.object({
+                id: z.string(),
+                date: z.string(),
+                property: z.string(),
+                type: z.string(),
+                status: z.string(),
+                amount: z.number(),
+                icon: z.string(),
+            })),
+        }))
+        .query(async ({ ctx }) => {
+            return await authService.getDashboardStats(ctx.user!.id);
+        }),
+
+    wallet: protectedProcedure
+        .meta({ openapi: { method: 'GET', path: '/auth/wallet', tags: ['auth'] } })
+        .output(z.object({
+            balance: z.number(),
+            currency: z.string(),
+        }))
+        .query(async ({ ctx }) => {
+            const wallet = await authService.getWallet(ctx.user!.id);
+            return {
+                balance: wallet.balance,
+                currency: wallet.currency
+            };
+        }),
+
+    addMoney: protectedProcedure
+        .meta({ openapi: { method: 'POST', path: '/auth/wallet/add', tags: ['auth'] } })
+        .input(z.object({ amount: z.number().min(1) }))
+        .output(z.any())
+        .mutation(async ({ ctx, input }) => {
+            return await authService.updateWalletBalance(ctx.user!.id, input.amount, 'DEPOSIT');
+        }),
+
+    withdrawMoney: protectedProcedure
+        .meta({ openapi: { method: 'POST', path: '/auth/wallet/withdraw', tags: ['auth'] } })
+        .input(z.object({ amount: z.number().min(1) }))
+        .output(z.any())
+        .mutation(async ({ ctx, input }) => {
+            return await authService.updateWalletBalance(ctx.user!.id, input.amount, 'WITHDRAWAL');
+        }),
 });

@@ -7,6 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ... (User)
 model User {
   id            String      @id @default(uuid())
   email         String      @unique
@@ -14,9 +15,58 @@ model User {
   password      String?
   isKycVerified Boolean     @default(false)
   kycProfile    KycProfile?
+  wallet        Wallet?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  transactions  Transaction[]
+  totalInvestment Float       @default(0)
 }
+
+// ... (KycProfile)
+
+// ... (User)
+// ... (KycProfile)
+
+model Wallet {
+  id           String              @id @default(uuid())
+  userId       String              @unique
+  user         User                @relation(fields: [userId], references: [id])
+  balance      Float               @default(0.0)
+  currency     String              @default("INR")
+  transactions WalletTransaction[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model WalletTransaction {
+  id        String          @id @default(uuid())
+  walletId  String
+  wallet    Wallet          @relation(fields: [walletId], references: [id])
+  amount    Float
+  type      WalletTxType
+  status    WalletTxStatus  @default(COMPLETED)
+  reference String? // Payment gateway reference or similar
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([walletId])
+}
+
+enum WalletTxType {
+  DEPOSIT
+  WITHDRAWAL
+  INVESTMENT
+  DIVIDEND
+}
+
+enum WalletTxStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+
+
 
 model KycProfile {
   id            String           @id @default(uuid())
@@ -81,8 +131,27 @@ model Property {
   image         String
   status        PropertyStatus @default(OPEN)
   isFeatured    Boolean        @default(false)
+  totalSqft     Float          @default(10000)
+  pricePerSqft  Float          @default(5000)
+  sqftSold      Float          @default(0)
+
+  // Rich Data Fields
+  description       String   @default("Premium property with high appreciation potential.")
+  locationMap       String   @default("https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=600&q=80")
+  
+  // Tenant Details
+  tenantName        String   @default("TechGlobal Solutions Pvt Ltd.")
+  tenantDescription String   @default("Leading IT consultancy firm with 50+ offices globally.")
+  tenantLogo        String   @default("T")
+  
+  // Arrays & JSON
+  highlights        String[]
+  financials        Json?
+  documents         Json?
+  priceHistory      Json?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  transactions  Transaction[]
 }
 
 enum PropertyStatus {
@@ -97,4 +166,23 @@ enum PropertyType {
   WAREHOUSING
   RESIDENTIAL
   WAREHOUSE
+}
+
+model Transaction {
+  id        String            @id @default(uuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id])
+  propertyId String
+  property  Property          @relation(fields: [propertyId], references: [id])
+  amount    Float
+  sqft      Float
+  status    TransactionStatus @default(PENDING)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
 }

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import ProfileDropdown from '@/components/ProfileDropdown';
+
 
 export default function HomePage() {
     const router = useRouter();
@@ -32,45 +32,6 @@ export default function HomePage() {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC]">
-            {/* Header */}
-            <header className="bg-white/90 backdrop-blur-md border-b border-[#E2E8F0] sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="flex justify-between items-center h-20">
-                        <Link href="/" className="flex items-center space-x-3 group">
-                            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-100 group-hover:scale-105 transition-transform">
-                                <span className="text-white text-xl font-bold">R</span>
-                            </div>
-                            <span className="text-xl font-bold text-[#0F172A]">RealBlock</span>
-                        </Link>
-                        <nav className="hidden md:flex items-center space-x-10">
-                            <Link href="/properties" className="text-sm text-[#64748B] hover:text-[#0F172A] font-bold transition-colors">Marketplace</Link>
-                            <Link href="#how-it-works" className="text-sm text-[#64748B] hover:text-[#0F172A] font-bold transition-colors">How It Works</Link>
-                            <Link href="#" className="text-sm text-[#64748B] hover:text-[#0F172A] font-bold transition-colors">Learn</Link>
-                            <Link href="#" className="text-sm text-[#64748B] hover:text-[#0F172A] font-bold transition-colors">About Us</Link>
-                        </nav>
-                        <div className="flex items-center space-x-4">
-                            {user ? (
-                                <ProfileDropdown user={user} />
-                            ) : (
-                                <>
-                                    <button
-                                        onClick={() => router.push('/auth/login')}
-                                        className="text-sm font-bold text-[#64748B] hover:text-[#0F172A] px-4"
-                                    >
-                                        Login
-                                    </button>
-                                    <button
-                                        onClick={() => router.push('/auth/signup')}
-                                        className="bg-[#3B82F6] text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-[#2563EB] transition-all shadow-md shadow-blue-100"
-                                    >
-                                        Start Investing
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </header>
 
             {/* Hero Section */}
             <section className="relative pt-24 pb-32 overflow-hidden bg-gradient-to-r from-[#F8FAFC] to-[#4A6F5F]">
@@ -278,7 +239,9 @@ export default function HomePage() {
                                 progress: 65,
                                 minInvestment: '₹5,000',
                                 image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1000&q=80',
-                                status: 'OPEN'
+                                status: 'OPEN',
+                                totalSqft: 15000,
+                                sqftSold: 9750
                             },
                             {
                                 id: '2',
@@ -291,7 +254,9 @@ export default function HomePage() {
                                 progress: 22,
                                 minInvestment: '₹10,000',
                                 image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1000&q=80',
-                                status: 'OPEN'
+                                status: 'OPEN',
+                                totalSqft: 50000,
+                                sqftSold: 11000
                             },
                             {
                                 id: '3',
@@ -304,7 +269,9 @@ export default function HomePage() {
                                 progress: 100,
                                 minInvestment: '₹25,000',
                                 image: 'https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=1000&q=80',
-                                status: 'FULLY_FUNDED'
+                                status: 'FULLY_FUNDED',
+                                totalSqft: 25000,
+                                sqftSold: 25000
                             }
                         ]).map((property) => (
                             <div
@@ -380,7 +347,7 @@ export default function HomePage() {
                                         <div className="flex justify-between items-center text-[12px] font-bold">
                                             {property.status === 'OPEN' ? (
                                                 <>
-                                                    <span className="text-[#64748B]">{property.progress}% Funded</span>
+                                                    <span className="text-[#64748B]">{(property.sqftSold || 0).toLocaleString()} / {(property.totalSqft || 0).toLocaleString()} Sold</span>
                                                     <span className="text-[#64748B]">{property.minInvestment} Min</span>
                                                 </>
                                             ) : (
@@ -395,8 +362,8 @@ export default function HomePage() {
                                     {/* Action Button */}
                                     <button
                                         className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all border-2 ${property.status === 'OPEN'
-                                                ? 'border-[#3B82F6] text-[#3B82F6] hover:bg-[#3B82F6] hover:text-white'
-                                                : 'border-[#F1F5F9] bg-[#F8FAFC] text-[#94A3B8] cursor-not-allowed'
+                                            ? 'border-[#3B82F6] text-[#3B82F6] hover:bg-[#3B82F6] hover:text-white'
+                                            : 'border-[#F1F5F9] bg-[#F8FAFC] text-[#94A3B8] cursor-not-allowed'
                                             }`}
                                     >
                                         View Details
@@ -409,35 +376,35 @@ export default function HomePage() {
             </section>
 
             {/* Global CTA Section */}
-            <section className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] py-32 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-1/2 h-full bg-blue-600/10 blur-[150px] rounded-full"></div>
+            <section className="bg-[#0055FF] py-32 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-1/2 h-full bg-white/10 blur-[150px] rounded-full"></div>
 
                 <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
                     <h2 className="text-5xl md:text-6xl font-black text-white mb-8 tracking-tight">
                         Start Building Your <br className="hidden md:block" />Digital Landlord Portfolio.
                     </h2>
-                    <p className="text-[#94A3B8] text-xl font-medium mb-12 max-w-2xl mx-auto">
+                    <p className="text-blue-100 text-xl font-medium mb-12 max-w-2xl mx-auto">
                         Join 15,000+ smart investors today. No brokerage. No paperwork. Just returns.
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center items-center gap-6">
                         <button
                             onClick={() => router.push(user ? '/dashboard' : '/auth/signup')}
-                            className="bg-[#3B82F6] text-white px-12 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-[#2563EB] transition-all shadow-xl shadow-blue-500/20"
+                            className="bg-white text-[#0055FF] px-12 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-50 transition-all shadow-xl shadow-blue-900/20"
                         >
                             {user ? 'Open Dashboard' : 'Initialize Account'}
                         </button>
-                        <button className="text-white border-2 border-white/20 px-12 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-white/10 transition-all">
+                        <button className="text-white border-2 border-white px-12 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-white/10 transition-all">
                             Partner Support
                         </button>
                     </div>
 
-                    <div className="mt-16 flex justify-center items-center space-x-6 text-[#64748B]">
+                    <div className="mt-16 flex justify-center items-center space-x-6 text-white">
                         <div className="flex items-center space-x-2">
-                            <span className="text-[#22C55E]">🛡️</span>
+                            <span className="text-white">🛡️</span>
                             <span className="text-[10px] font-black uppercase tracking-widest">Bank-Grade Encryption</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                            <span className="text-[#22C55E]">🏢</span>
+                            <span className="text-white">🏢</span>
                             <span className="text-[10px] font-black uppercase tracking-widest">RERA Certified Assets</span>
                         </div>
                     </div>
@@ -450,10 +417,10 @@ export default function HomePage() {
                     <div className="grid md:grid-cols-12 gap-16 mb-20">
                         <div className="md:col-span-5">
                             <Link href="/" className="flex items-center space-x-3 mb-8">
-                                <div className="w-10 h-10 bg-[#0F172A] rounded-xl flex items-center justify-center">
+                                <div className="w-10 h-10 bg-[#0055FF] rounded-xl flex items-center justify-center">
                                     <span className="text-white text-xl font-bold">🏛️</span>
                                 </div>
-                                <span className="text-2xl font-black text-[#0F172A]">RealBlock</span>
+                                <span className="text-2xl font-black text-[#0F172A]"><span className="text-[#0055FF]">Real</span>Block</span>
                             </Link>
                             <p className="text-[#64748B] text-lg font-medium leading-relaxed mb-8 max-w-sm">
                                 Leading the fractional revolution. Making institutional real estate accessible to everyone through decentralized ledgers.

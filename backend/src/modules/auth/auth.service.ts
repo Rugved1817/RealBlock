@@ -88,6 +88,93 @@ export class AuthService {
         });
         return user;
     }
+
+    async getDashboardStats(userId: string) {
+        // Cast to any to avoid TS errors until client regenerates fully
+        const prismaClient = prisma as any;
+        const transactions = await prismaClient.transaction.findMany({
+            where: { userId },
+            include: {
+                property: true
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+
+        const totalInvestment = transactions.reduce((sum: number, t: any) => sum + t.amount, 0);
+
+        // SYNC: Update User table with total investment as requested
+        await prismaClient.user.update({
+            where: { id: userId },
+            data: { totalInvestment }
+        });
+
+        const totalSqft = transactions.reduce((sum: number, t: any) => sum + t.sqft, 0);
+        const uniqueProperties = new Set(transactions.map((t: any) => t.propertyId)).size;
+
+        return {
+            totalInvestment,
+            totalSqft,
+            propertyCount: uniqueProperties,
+            transactions: transactions.map((t: any) => ({
+                id: t.id,
+                date: t.createdAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                property: t.property.name,
+                type: 'Token Purchase', // For now only purchases
+                status: t.status,
+                amount: t.amount * -1, // Negative for outflow
+                icon: t.property.type === 'COMMERCIAL' ? '🏢' : t.property.type === 'WAREHOUSING' ? '🏭' : '🏠'
+            }))
+        };
+    }
+    async getWallet(userId: string) {
+        const prismaClient = prisma as any;
+        let wallet = await prismaClient.wallet.findUnique({
+            where: { userId }
+        });
+
+        if (!wallet) {
+            // Create a default wallet if none exists
+            wallet = await prismaClient.wallet.create({
+                data: {
+                    userId,
+                    balance: 0,
+                    currency: 'INR'
+                }
+            });
+        }
+
+        return wallet;
+    }
+    async updateWalletBalance(userId: string, amount: number, type: 'DEPOSIT' | 'WITHDRAWAL') {
+        const wallet = await this.getWallet(userId);
+
+        if (type === 'WITHDRAWAL' && wallet.balance < amount) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'Insufficient funds' });
+        }
+
+        const newBalance = type === 'DEPOSIT' ? wallet.balance + amount : wallet.balance - amount;
+
+        const prismaClient = prisma as any;
+
+        return await prisma.$transaction([
+            prismaClient.wallet.update({
+                where: { userId },
+                data: { balance: newBalance }
+            }),
+            prismaClient.walletTransaction.create({
+                data: {
+                    walletId: wallet.id,
+                    amount,
+                    type: type, // Matches enum directly
+                    status: 'COMPLETED',
+                    reference: `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+                }
+            })
+        ]);
+    }
 }
+
 
 export const authService = new AuthService();

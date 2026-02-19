@@ -44,6 +44,10 @@ app.get('/health', (req, res) => {
 // Webhook route (Must be before tRPC)
 app.post('/webhooks/cashfree/kyc', handleCashfreeWebhook);
 
+import aiRouter from './modules/ai/ai.router.js';
+// AI Agent Route (Must come before generic /api handler)
+app.use('/api/ai', aiRouter);
+
 // tRPC express middleware
 app.use(
     '/trpc',
