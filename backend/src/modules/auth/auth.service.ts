@@ -60,6 +60,7 @@ export class AuthService {
                 email: user.email,
                 name: user.name,
                 isKycVerified: user.isKycVerified,
+                walletAddress: (user as any).walletAddress,
             },
         };
     }
@@ -84,9 +85,17 @@ export class AuthService {
                 email: true,
                 name: true,
                 isKycVerified: true,
+                walletAddress: true,
             }
         });
         return user;
+    }
+
+    async updateWalletAddress(userId: string, address: string) {
+        return await prisma.user.update({
+            where: { id: userId },
+            data: { walletAddress: address } as any
+        });
     }
 
     async getDashboardStats(userId: string) {
@@ -113,18 +122,53 @@ export class AuthService {
         const totalSqft = transactions.reduce((sum: number, t: any) => sum + t.sqft, 0);
         const uniqueProperties = new Set(transactions.map((t: any) => t.propertyId)).size;
 
+        // Asset breakdown
+        const assetMap = new Map();
+        transactions.forEach((t: any) => {
+            if (t.status === 'COMPLETED') {
+                const existing = assetMap.get(t.propertyId) || {
+                    id: t.propertyId,
+                    name: t.property.name,
+                    type: t.property.type,
+                    location: t.property.location,
+                    image: t.property.image,
+                    sqftOwned: 0,
+                    totalValue: 0
+                };
+
+                if (t.type === 'BUY') {
+                    existing.sqftOwned += t.sqft;
+                    existing.totalValue += t.amount;
+                } else if (t.type === 'SELL') {
+                    existing.sqftOwned -= t.sqft;
+                    existing.totalValue += t.amount; // amount is negative for SELL
+                } else {
+                    // Fallback for transactions without type (legacy)
+                    existing.sqftOwned += t.sqft;
+                    existing.totalValue += t.amount;
+                }
+
+                assetMap.set(t.propertyId, existing);
+            }
+        });
+
+        // Filter out assets with no remaining ownership
+        const assets = Array.from(assetMap.values()).filter((asset: any) => asset.sqftOwned > 0.01);
+
         return {
             totalInvestment,
-            totalSqft,
-            propertyCount: uniqueProperties,
+            totalSqft: assets.reduce((sum, a) => sum + a.sqftOwned, 0),
+            propertyCount: assets.length,
+            assets,
             transactions: transactions.map((t: any) => ({
                 id: t.id,
                 date: t.createdAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
                 property: t.property.name,
-                type: 'Token Purchase', // For now only purchases
+                type: 'Token Purchase',
                 status: t.status,
-                amount: t.amount * -1, // Negative for outflow
-                icon: t.property.type === 'COMMERCIAL' ? '🏢' : t.property.type === 'WAREHOUSING' ? '🏭' : '🏠'
+                amount: t.amount * -1,
+                icon: t.property.type === 'COMMERCIAL' ? '🏢' : t.property.type === 'WAREHOUSING' ? '🏭' : '🏠',
+                hash: (t as any).transactionHash || null
             }))
         };
     }
@@ -154,25 +198,40 @@ export class AuthService {
             throw new TRPCError({ code: 'BAD_REQUEST', message: 'Insufficient funds' });
         }
 
-        const newBalance = type === 'DEPOSIT' ? wallet.balance + amount : wallet.balance - amount;
+        try {
+            return await prisma.$transaction(async (tx: any) => {
+                // Use increment/decrement to be safe
+                const updatedWallet = await tx.wallet.update({
+                    where: { userId },
+                    data: {
+                        balance: {
+                            [type === 'DEPOSIT' ? 'increment' : 'decrement']: amount
+                        }
+                    }
+                });
 
-        const prismaClient = prisma as any;
+                const transaction = await tx.walletTransaction.create({
+                    data: {
+                        walletId: wallet.id,
+                        amount,
+                        type: type,
+                        status: 'COMPLETED',
+                        reference: `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+                    }
+                });
 
-        return await prisma.$transaction([
-            prismaClient.wallet.update({
-                where: { userId },
-                data: { balance: newBalance }
-            }),
-            prismaClient.walletTransaction.create({
-                data: {
-                    walletId: wallet.id,
-                    amount,
-                    type: type, // Matches enum directly
-                    status: 'COMPLETED',
-                    reference: `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-                }
-            })
-        ]);
+                return {
+                    wallet: updatedWallet,
+                    transaction
+                };
+            });
+        } catch (error) {
+            console.error('Wallet Transaction Error Details:', error);
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: error instanceof Error ? error.message : 'Wallet transaction failed'
+            });
+        }
     }
 }
 

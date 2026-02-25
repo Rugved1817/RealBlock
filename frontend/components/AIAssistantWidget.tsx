@@ -11,63 +11,42 @@ type Message = {
     text: string;
     sender: 'user' | 'agent';
     timestamp: Date;
-    agentType?: 'market' | 'portfolio' | 'advisor';
+    agentType?: 'orchestrator';
 };
 
-type AgentType = 'market' | 'portfolio' | 'advisor';
+type AgentType = 'orchestrator';
 
 const AGENTS = {
-    market: {
-        id: 'market',
-        name: 'Market Scout',
-        role: 'Property Search',
+    orchestrator: {
+        id: 'orchestrator',
+        name: 'RealBlock AI',
+        role: 'Assistant',
         color: 'bg-blue-600',
         textColor: 'text-blue-600',
         lightBg: 'bg-blue-50',
         gradient: 'from-blue-600 to-indigo-600',
         avatar: (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
         ),
-        welcome: "Hi! I can help you find high-yield properties. Try asking 'Show me commercial properties in Mumbai'."
-    },
-    portfolio: {
-        id: 'portfolio',
-        name: 'Portfolio Mgr.',
-        role: 'Asset Management',
-        color: 'bg-purple-600',
-        textColor: 'text-purple-600',
-        lightBg: 'bg-purple-50',
-        gradient: 'from-purple-600 to-pink-600',
-        avatar: (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        ),
-        welcome: "I'm tracking your investments. Ask me 'How is my portfolio performing?' or 'My dividends?'."
-    },
-    advisor: {
-        id: 'advisor',
-        name: 'Wealth Advisor',
-        role: 'Consultant',
-        color: 'bg-emerald-600',
-        textColor: 'text-emerald-600',
-        lightBg: 'bg-emerald-50',
-        gradient: 'from-emerald-600 to-teal-600',
-        avatar: (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-        ),
-        welcome: "Confused about Real Estate Tokens? Ask me about 'Yield', 'IRR', or 'Risk factors'."
+        welcome: "Hi! I'm your RealBlock Intelligence. Ask me anything about properties, your portfolio, or real estate finance!"
     }
 };
 
 export default function AIAssistantWidget() {
     const [isOpen, setIsOpen] = useState(false);
-    const [activeAgent, setActiveAgent] = useState<AgentType>('market');
+    const [activeAgent, setActiveAgent] = useState<AgentType>('orchestrator');
     const [messages, setMessages] = useState<Message[]>([
-        { id: '1', text: AGENTS.market.welcome, sender: 'agent', timestamp: new Date(), agentType: 'market' }
+        { id: '1', text: AGENTS.orchestrator.welcome, sender: 'agent', timestamp: new Date(), agentType: 'orchestrator' }
     ]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    const pathname = usePathname();
+    const router = useRouter();
+
+    // Do not render the floating widget if we are already on the full screen chat page
+    if (pathname === '/chat') return null;
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -170,18 +149,7 @@ export default function AIAssistantWidget() {
     };
 
     const handleAgentSwitch = (agentId: AgentType) => {
-        if (agentId === activeAgent) return;
-        setActiveAgent(agentId);
-        setMessages(prev => [
-            ...prev,
-            {
-                id: Date.now().toString(),
-                text: AGENTS[agentId].welcome,
-                sender: 'agent',
-                timestamp: new Date(),
-                agentType: agentId
-            }
-        ]);
+        // Not needed anymore
     };
 
     return (
@@ -202,29 +170,24 @@ export default function AIAssistantWidget() {
                                     <p className="text-[10px] text-white/80 font-medium">{AGENTS[activeAgent].role}</p>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => setIsOpen(false)}
-                                className="p-1 hover:bg-white/20 rounded-full transition-colors"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
+                            <div className="flex space-x-2">
+                                <button
+                                    onClick={() => router.push('/chat')}
+                                    className="p-1 hover:bg-white/20 rounded-full transition-colors"
+                                    title="Open Full Screen"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                                </button>
+                                <button
+                                    onClick={() => setIsOpen(false)}
+                                    className="p-1 hover:bg-white/20 rounded-full transition-colors"
+                                    title="Close"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
                         </div>
 
-                        {/* Agent Switcher Tabs */}
-                        <div className="flex space-x-1 bg-black/10 p-1 rounded-xl backdrop-blur-md">
-                            {(Object.keys(AGENTS) as AgentType[]).map((agentKey) => (
-                                <button
-                                    key={agentKey}
-                                    onClick={() => handleAgentSwitch(agentKey)}
-                                    className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${activeAgent === agentKey
-                                        ? 'bg-white text-slate-900 shadow-sm'
-                                        : 'text-white/60 hover:bg-white/10 hover:text-white'
-                                        }`}
-                                >
-                                    {AGENTS[agentKey].name.split(' ')[0]}
-                                </button>
-                            ))}
-                        </div>
                     </div>
 
                     {/* Messages Area */}
@@ -235,7 +198,7 @@ export default function AIAssistantWidget() {
                                 className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
                                 {msg.sender === 'agent' && (
-                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 shrink-0 text-white text-[10px] mt-1 bg-gradient-to-br ${AGENTS[msg.agentType || 'market'].gradient}`}>
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 shrink-0 text-white text-[10px] mt-1 bg-gradient-to-br ${AGENTS.orchestrator.gradient}`}>
                                         AI
                                     </div>
                                 )}
@@ -288,7 +251,7 @@ export default function AIAssistantWidget() {
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 placeholder={`Ask ${AGENTS[activeAgent].name}...`}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-4 pr-12 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-400"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-4 pr-12 text-sm text-slate-900 font-medium focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-400"
                             />
                             <button
                                 type="submit"

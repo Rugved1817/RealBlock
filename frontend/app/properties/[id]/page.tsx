@@ -34,12 +34,13 @@ interface Property {
     };
     documents?: { name: string; type: string; size: string }[];
     priceHistory?: { date: string; value: number }[];
+    contractAddress?: string;
 }
 
 export default function PropertyDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const [user, setUser] = useState<{ id: string; email: string; name?: string } | null>(null);
+    const [user, setUser] = useState<{ id: string; email: string; name?: string; walletAddress?: string } | null>(null);
     const [property, setProperty] = useState<Property | null>(null);
     const [loading, setLoading] = useState(true);
     const [sqftCount, setSqftCount] = useState(10);
@@ -50,7 +51,10 @@ export default function PropertyDetailPage() {
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
-        if (userData) setUser(JSON.parse(userData));
+        if (userData) {
+            const parsed = JSON.parse(userData);
+            setUser(parsed);
+        }
 
         const fetchProperty = async () => {
             if (!params?.id) return;
@@ -77,7 +81,8 @@ export default function PropertyDetailPage() {
                             logo: data.tenantLogo
                         },
                         documents: data.documents || [],
-                        priceHistory: data.priceHistory || []
+                        priceHistory: data.priceHistory || [],
+                        contractAddress: data.contractAddress
                     });
                 } else {
                     console.error('Property not found');
@@ -100,6 +105,7 @@ export default function PropertyDetailPage() {
         }
         if (!property) return;
 
+
         setPurchaseLoading(true);
         try {
             const response = await fetch(`http://localhost:4000/api/properties/${property.id}/invest`, {
@@ -114,7 +120,20 @@ export default function PropertyDetailPage() {
             const result = await response.json();
 
             if (response.ok) {
-                alert('Purchase Successful! Transaction ID: ' + (result?.transaction?.id || 'Pending'));
+                const txHash = result?.transaction?.transactionHash;
+                const status = result?.transaction?.status;
+
+                let successMsg = `Purchase Successful!\n\nTransaction ID: ${result?.transaction?.id}`;
+                if (txHash) {
+                    successMsg += `\nBlockchain Hash: ${txHash.slice(0, 10)}...${txHash.slice(-8)}`;
+                }
+
+                if (status === 'FAILED') {
+                    alert('Payment recorded but blockchain registration failed. Our team will resolve this manually.');
+                } else {
+                    alert(successMsg);
+                }
+
                 setIsCheckoutOpen(false);
                 // Refresh property data
                 window.location.reload();
@@ -316,9 +335,16 @@ export default function PropertyDetailPage() {
                                 <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm">
                                     <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 </div>
-                                <p className="text-[11px] font-bold text-slate-600 leading-relaxed">
-                                    By confirming, you agree to sign the transaction via your connected wallet. Ownership tokens will be transferred upon network confirmation.
-                                </p>
+                                <div className="space-y-1">
+                                    <p className="text-[11px] font-bold text-slate-600 leading-relaxed">
+                                        Secure transaction enabled. Your ownership will be recorded on the Polygon network.
+                                    </p>
+                                    {!user?.walletAddress && (
+                                        <p className="text-[9px] font-medium text-slate-400">
+                                            Currently in Custodial Mode. Link your own wallet in settings to claim full control.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
 
                             <button
@@ -374,7 +400,7 @@ export default function PropertyDetailPage() {
                             <img src={property.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[2000ms] ease-out will-change-transform" alt={property.name} />
 
                             {/* Top Badges */}
-                            <div className="absolute top-6 left-6 z-20 flex gap-3">
+                            <div className="absolute top-6 left-6 z-20 flex flex-wrap gap-3">
                                 <span className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest shadow-lg backdrop-blur-md ${property.soldTokens >= property.totalTokens ? 'bg-slate-900 text-white' : 'bg-emerald-500 text-white'}`}>
                                     {property.soldTokens >= property.totalTokens ? 'Sold Out' : 'Live Deal'}
                                 </span>
@@ -382,6 +408,12 @@ export default function PropertyDetailPage() {
                                     <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mr-2 animate-pulse"></span>
                                     Verified Asset
                                 </span>
+                                {property.contractAddress && (
+                                    <span className="bg-white/10 backdrop-blur-md text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-white/20 shadow-lg flex items-center">
+                                        <svg className="w-3.5 h-3.5 mr-1.5 text-blue-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                                        Contract: {property.contractAddress.slice(0, 6)}...{property.contractAddress.slice(-4)}
+                                    </span>
+                                )}
                             </div>
 
                             {/* Bottom Content overlay */}

@@ -61,4 +61,12 @@ export const propertyRouter = router({
         .mutation(async ({ input }) => {
             return await propertyService.invest(input.userId, input.id, input.sqftAmount);
         }),
+
+    sell: publicProcedure
+        .meta({ openapi: { method: 'POST', path: '/properties/{id}/sell', tags: ['property'] } })
+        .input(z.object({ id: z.string(), userId: z.string(), sqftAmount: z.number() }))
+        .output(z.any())
+        .mutation(async ({ input }) => {
+            return await propertyService.sell(input.userId, input.id, input.sqftAmount);
+        }),
 });

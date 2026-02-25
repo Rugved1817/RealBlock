@@ -20,6 +20,7 @@ model User {
   updatedAt     DateTime    @updatedAt
   transactions  Transaction[]
   totalInvestment Float       @default(0)
+  walletAddress String?
 }
 
 // ... (KycProfile)
@@ -134,6 +135,8 @@ model Property {
   totalSqft     Float          @default(10000)
   pricePerSqft  Float          @default(5000)
   sqftSold      Float          @default(0)
+  contractAddress String?
+
 
   // Rich Data Fields
   description       String   @default("Premium property with high appreciation potential.")
@@ -176,7 +179,10 @@ model Transaction {
   property  Property          @relation(fields: [propertyId], references: [id])
   amount    Float
   sqft      Float
+  type      TransactionType @default(BUY)
   status    TransactionStatus @default(PENDING)
+  transactionHash String?
+
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 }
@@ -185,4 +191,9 @@ enum TransactionStatus {
   PENDING
   COMPLETED
   FAILED
+}
+
+enum TransactionType {
+  BUY
+  SELL
 }

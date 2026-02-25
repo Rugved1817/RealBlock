@@ -27,6 +27,7 @@ export const authRouter = router({
                 email: z.string(),
                 name: z.string().nullable(),
                 isKycVerified: z.boolean(),
+                walletAddress: z.string().nullable(),
             }),
         }))
         .mutation(async ({ input }) => {
@@ -40,6 +41,7 @@ export const authRouter = router({
             email: z.string(),
             name: z.string().nullable(),
             isKycVerified: z.boolean(),
+            walletAddress: z.string().nullable(),
         }))
         .query(async ({ ctx }) => {
             const user = await authService.getUserById(ctx.user!.id);
@@ -57,7 +59,15 @@ export const authRouter = router({
         .output(z.object({
             totalInvestment: z.number(),
             totalSqft: z.number(),
-            propertyCount: z.number(),
+            assets: z.array(z.object({
+                id: z.string(),
+                name: z.string(),
+                type: z.string(),
+                location: z.string(),
+                image: z.string(),
+                sqftOwned: z.number(),
+                totalValue: z.number(),
+            })),
             transactions: z.array(z.object({
                 id: z.string(),
                 date: z.string(),
@@ -66,6 +76,7 @@ export const authRouter = router({
                 status: z.string(),
                 amount: z.number(),
                 icon: z.string(),
+                hash: z.string().nullable().optional(),
             })),
         }))
         .query(async ({ ctx }) => {
@@ -100,5 +111,13 @@ export const authRouter = router({
         .output(z.any())
         .mutation(async ({ ctx, input }) => {
             return await authService.updateWalletBalance(ctx.user!.id, input.amount, 'WITHDRAWAL');
+        }),
+
+    updateWalletAddress: protectedProcedure
+        .meta({ openapi: { method: 'POST', path: '/auth/wallet/address', tags: ['auth'] } })
+        .input(z.object({ address: z.string() }))
+        .output(z.any())
+        .mutation(async ({ ctx, input }) => {
+            return await authService.updateWalletAddress(ctx.user!.id, input.address);
         }),
 });

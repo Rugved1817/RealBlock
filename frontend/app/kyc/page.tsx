@@ -11,6 +11,8 @@ export default function KYCPage() {
     const [panNumber, setPanNumber] = useState('');
     const [name, setName] = useState('');
     const [verifying, setVerifying] = useState(false);
+    const [walletAddress, setWalletAddress] = useState('');
+    const [updatingWallet, setUpdatingWallet] = useState(false);
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState<'success' | 'error' | ''>('');
 
@@ -23,7 +25,9 @@ export default function KYCPage() {
             return;
         }
 
-        setUser(JSON.parse(userData));
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        setWalletAddress(parsedUser.walletAddress || '');
         setLoading(false);
     }, [router]);
 
@@ -63,6 +67,41 @@ export default function KYCPage() {
             setMessageType('error');
         } finally {
             setVerifying(false);
+        }
+    };
+
+    const handleUpdateWallet = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setUpdatingWallet(true);
+        setMessage('');
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:4000/api/auth/wallet/address', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ address: walletAddress }),
+            });
+
+            if (response.ok) {
+                setMessage('✅ Wallet Address Updated!');
+                setMessageType('success');
+
+                const updatedUser = { ...user, walletAddress };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                setUser(updatedUser);
+            } else {
+                setMessage('Failed to update wallet address');
+                setMessageType('error');
+            }
+        } catch (error) {
+            setMessage('Network error');
+            setMessageType('error');
+        } finally {
+            setUpdatingWallet(false);
         }
     };
 
@@ -190,6 +229,28 @@ export default function KYCPage() {
                             <div className="w-20 h-20 bg-[#F0FDF4] text-[#22C55E] rounded-full flex items-center justify-center text-4xl mx-auto mb-6 shadow-xl shadow-green-100">✓</div>
                             <h3 className="text-2xl font-black text-[#1E293B] mb-4">Verification Complete</h3>
                             <p className="text-[#64748B] font-medium mb-10">Your investor profile is now active on the Polygon protocol. You can proceed with fractional acquisitions.</p>
+                            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-[24px] p-8 mb-10 text-left">
+                                <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest pl-1 mb-3">
+                                    Linked Blockchain Address
+                                </label>
+                                <form onSubmit={handleUpdateWallet} className="flex gap-3">
+                                    <input
+                                        type="text"
+                                        value={walletAddress}
+                                        onChange={(e) => setWalletAddress(e.target.value)}
+                                        placeholder="0x..."
+                                        className="flex-1 px-5 py-3 bg-white border border-[#E2E8F0] rounded-xl focus:border-[#3B82F6] outline-none transition-all font-mono text-[11px] text-[#1E293B]"
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={updatingWallet}
+                                        className="bg-[#3B82F6] text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#2563EB] transition-all disabled:opacity-50"
+                                    >
+                                        {updatingWallet ? 'Saving...' : 'Update'}
+                                    </button>
+                                </form>
+                            </div>
+
                             <button
                                 onClick={() => router.push('/dashboard')}
                                 className="bg-[#0F172A] text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl"

@@ -6,6 +6,9 @@ import { StateGraph, END, START } from '@langchain/langgraph';
 import { z } from 'zod';
 import { tool } from '@langchain/core/tools';
 import prisma from '../../prisma/client.js';
+import { authService } from '../auth/auth.service.js';
+import { propertyService } from '../property/property.service.js';
+import { MongoClient } from 'mongodb';
 
 const aiRouter = Router();
 
@@ -92,6 +95,75 @@ const searchPropertiesTool = tool(
     }
 );
 
+// Market Agent Tool: Get Location Prices from propVista MongoDB
+const getLocationPropertyPricesTool = tool(
+    async ({ locationName }) => {
+        const uri = "mongodb://192.168.1.198:27017";
+        const client = new MongoClient(uri);
+
+        try {
+            await client.connect();
+            const database = client.db('propVista');
+            const areasCollection = database.collection('areas');
+            const districtsCollection = database.collection('districts');
+
+            console.log(`Searching MongoDB propVista.areas for locationName: ${locationName}`);
+
+            // Case-insensitive regex search in areas
+            const area = await areasCollection.findOne({
+                name: { $regex: new RegExp(locationName, 'i') }
+            });
+
+            if (area) {
+                const stats = area.stats || {};
+                return JSON.stringify({
+                    level: "Area",
+                    name: area.name,
+                    districtName: area.district_name,
+                    avgPricePerSqft: stats.avg_price_per_sqft || "N/A",
+                    maxPricePerSqft: stats.max_price_per_sqft || "N/A",
+                    minPricePerSqft: stats.min_price_per_sqft || "N/A",
+                    totalTransactions: stats.total_transactions || 0
+                });
+            }
+
+            console.log(`Not found in areas, searching propVista.districts for: ${locationName}`);
+
+            // If not found in areas, search in districts
+            const district = await districtsCollection.findOne({
+                name: { $regex: new RegExp(locationName, 'i') }
+            });
+
+            if (district) {
+                const stats = district.stats || {};
+                return JSON.stringify({
+                    level: "District",
+                    name: district.name,
+                    stateName: district.state_name || "N/A",
+                    avgPricePerSqft: stats.avg_price_per_sqft || "N/A",
+                    maxPricePerSqft: stats.max_price_per_sqft || "N/A",
+                    minPricePerSqft: stats.min_price_per_sqft || "N/A",
+                    totalTransactions: stats.total_transactions || 0
+                });
+            }
+
+            return `No data found for the location: ${locationName} in either areas or districts.`;
+        } catch (error: any) {
+            console.error("Error querying MongoDB for location prices:", error);
+            return `Error retrieving location prices: ${error.message}`;
+        } finally {
+            await client.close();
+        }
+    },
+    {
+        name: "get_location_property_prices",
+        description: "Fetch average, maximum, and minimum price per square foot (sqft) stats for a specific location (checks area/locality first, then district) from the database.",
+        schema: z.object({
+            locationName: z.string().describe("Name of the area, locality, or district to query (e.g., 'Mugali', 'Kondhwa', 'Thane')")
+        })
+    }
+);
+
 // Portfolio Agent Tool: Get Portfolio Stats
 const getPortfolioTool = tool(
     async ({ userId }) => {
@@ -100,61 +172,22 @@ const getPortfolioTool = tool(
         }
 
         try {
-            // Fetch User's Transactions (Investments)
-            // Casting to any to avoid TS errors until client regenerates fully
-            const prismaClient = prisma as any;
-            const investments = await prismaClient.transaction.findMany({
-                where: {
-                    userId: userId,
-                    status: 'COMPLETED'
-                },
-                include: {
-                    property: true
-                },
-                orderBy: {
-                    createdAt: 'desc'
-                }
-            });
-
-            // Fetch Wallet Balance
-            const wallet = await prismaClient.wallet.findUnique({
-                where: { userId: userId }
-            });
-
-            if (!investments || investments.length === 0) {
-                return JSON.stringify({
-                    totalInvestment: 0,
-                    propertiesCount: 0,
-                    walletBalance: wallet?.balance || 0,
-                    message: "No active investments found."
-                });
-            }
-
-            // Calculate Totals
-            const totalInvestment = investments.reduce((sum: number, tx: any) => sum + tx.amount, 0);
-            const propertiesCount = new Set(investments.map((tx: any) => tx.propertyId)).size;
-
-            // Calculate Estimated Monthly Payout (Simplified: 8% avg yield / 12)
-            // In a real app, this would come from a Dividend table or Property specific yield
-            const estimatedMonthlyPayout = Math.floor((totalInvestment * 0.08) / 12);
-
-            const recentTransactions = investments.slice(0, 3).map((tx: any) => ({
-                date: tx.createdAt.toISOString().split('T')[0],
-                property: tx.property.name,
-                amount: tx.amount,
-                sqft: tx.sqft
-            }));
+            const stats = await authService.getDashboardStats(userId);
+            const wallet = await authService.getWallet(userId);
 
             return JSON.stringify({
-                totalInvestment,
-                propertiesCount,
-                walletBalance: wallet?.balance || 0,
-                nextPayoutDate: "Nov 01", // MOCK for now, logic needed
-                estimatedMonthlyPayout,
-                currency: "INR", // Changed from implied USD to INR based on user context
-                recentTransactions
+                totalInvestment: stats.totalInvestment,
+                propertiesCount: stats.propertyCount,
+                walletBalance: wallet.balance,
+                currency: wallet.currency,
+                assets: stats.assets.map((a: any) => ({
+                    propertyId: a.id,
+                    name: a.name,
+                    sqftOwned: a.sqftOwned,
+                    totalValue: a.totalValue
+                })),
+                recentTransactions: stats.transactions.slice(0, 3)
             });
-
         } catch (error) {
             console.error("Error fetching portfolio:", error);
             return "Error fetching portfolio data.";
@@ -162,9 +195,35 @@ const getPortfolioTool = tool(
     },
     {
         name: "get_portfolio_stats",
-        description: "Get the current user's portfolio statistics, investments, and wallet details. Requires User ID.",
+        description: "Get the current user's portfolio statistics, active holdings (including exact propertyIds), investments, and wallet details. Requires User ID.",
         schema: z.object({
             userId: z.string().describe("User ID to fetch portfolio for")
+        })
+    }
+);
+
+// Portfolio Agent Tool: Sell Property
+const sellPropertyTool = tool(
+    async ({ userId, propertyId, sqftAmount }) => {
+        if (!userId || !propertyId || !sqftAmount) {
+            return "Missing parameters. Required: userId, propertyId, sqftAmount.";
+        }
+
+        try {
+            const result = await propertyService.sell(userId, propertyId, sqftAmount);
+            return `Successfully sold ${sqftAmount} sqft. The user's wallet has been credited.`;
+        } catch (error: any) {
+            console.error("Error selling property:", error);
+            return `Error selling property: ${error.message}`;
+        }
+    },
+    {
+        name: "sell_property",
+        description: "Sell a specific amount of square feet of a property holding for the user. USE THIS when the user explicitly asks to sell a specific property.",
+        schema: z.object({
+            userId: z.string().describe("User ID of the investor"),
+            propertyId: z.string().describe("The exact ID of the property to sell from get_portfolio_stats"),
+            sqftAmount: z.number().describe("The amount in square feet to sell")
         })
     }
 );
@@ -172,9 +231,11 @@ const getPortfolioTool = tool(
 // --- AGENT PROMPTS ---
 
 const MARKET_AGENT_SYSTEM_PROMPT = `You are a specialized Real Estate Market Scout for RealBlock.
-Your role is to help users find high-yield tokenized real estate assets.
-You have access to a 'search_properties' tool. USE IT when the user asks for properties.
+Your role is to help users find high-yield tokenized real estate assets and provide market price insights.
+You have access to a 'search_properties' tool for searching available tokenized properties on the platform.
+You also have access to a 'get_location_property_prices' tool. USE IT when the user specifically asks about the average, max, or min price per sqft or property trends in a particular location/area/district (e.g. "What are the prices per sqft in Mugali?").
 
+When answering about location prices, present the data clearly (average, minimum, maximum price per sqft).
 When listing properties, use the following Markdown format for EACH property:
 ![Property Image](IMAGE_URL)
 **[PROPERTY_NAME](/properties/PROPERTY_ID)**
@@ -191,8 +252,9 @@ User Query comes from the Supervisor.`;
 
 const PORTFOLIO_AGENT_SYSTEM_PROMPT = `You are a dedicated Portfolio Manager for RealBlock.
 Your role is to assist users with their investment queries.
-You have access to 'get_portfolio_stats'.
-When asked about performance, balance, or dividends, use the tool.
+You have access to 'get_portfolio_stats' and 'sell_property'.
+When asked about performance, balance, or checking holdings, use 'get_portfolio_stats'.
+When asked to sell holdings or a property, first use 'get_portfolio_stats' to get the user's active holdings and exact propertyIds, then use 'sell_property' to execute the sale.
 Interpret the data for the user in a professional, encouraging tone.
 If the user asks about anything unrelated to their portfolio or investments, politely refuse.`;
 
@@ -211,6 +273,7 @@ You have 3 specialized agents:
 
 Your job is to route the user's request to the MOST appropriate agent.
 Return the name of the agent to call: "MarketScout", "PortfolioManager", "WealthAdvisor".
+If the query is a simple greeting like "Hi", "Hello", or "Hey", route it to "WealthAdvisor".
 If the query is completely unrelated to real estate, finance, or the app (e.g. "Write a poem", "What is the capital of France"), reply with "Personal" and I will handle it by refusing.
 `;
 
@@ -265,36 +328,41 @@ const marketScoutNode = async (state: any) => {
     const messages = state.messages;
     const lastMessage = messages[messages.length - 1];
 
-    const marketLlm = llm.bindTools([searchPropertiesTool]);
+    const marketLlm = llm.bindTools([searchPropertiesTool, getLocationPropertyPricesTool]);
     const response = await marketLlm.invoke([
         new SystemMessage(MARKET_AGENT_SYSTEM_PROMPT),
         lastMessage
     ]);
 
     if (response.tool_calls && response.tool_calls.length > 0) {
-        const toolCall = response.tool_calls[0];
-        if (toolCall.name === 'search_properties') {
-            const toolResult = await searchPropertiesTool.invoke(toolCall.args);
+        const toolMessages = [];
+        for (const toolCall of response.tool_calls) {
+            let toolResult;
+            if (toolCall.name === 'search_properties') {
+                toolResult = await searchPropertiesTool.invoke(toolCall.args as any);
+            } else if (toolCall.name === 'get_location_property_prices') {
+                toolResult = await getLocationPropertyPricesTool.invoke(toolCall.args as any);
+            }
 
             // Correctly format the tool output as a ToolMessage
-            const toolMessage = new ToolMessage({
+            toolMessages.push(new ToolMessage({
                 tool_call_id: toolCall.id!,
                 content: typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult),
                 name: toolCall.name
-            });
-
-            const finalResponse = await llm.invoke([
-                new SystemMessage(MARKET_AGENT_SYSTEM_PROMPT),
-                lastMessage,
-                response, // This is the AIMessage with tool_calls
-                toolMessage // This is the ToolMessage responding to it
-            ]);
-
-            return {
-                messages: [finalResponse],
-                next: END
-            };
+            }));
         }
+
+        const finalResponse = await llm.invoke([
+            new SystemMessage(MARKET_AGENT_SYSTEM_PROMPT),
+            lastMessage,
+            response, // AIMessage with tool_calls
+            ...toolMessages // ToolMessages responding
+        ]);
+
+        return {
+            messages: [finalResponse],
+            next: END
+        };
     }
 
     return { messages: [response], next: END };
@@ -306,36 +374,41 @@ const portfolioManagerNode = async (state: any) => {
     const lastMessage = messages[messages.length - 1];
     const userId = state.userId || "UNKNOWN_USER";
 
-    const portfolioLlm = llm.bindTools([getPortfolioTool]);
+    const portfolioLlm = llm.bindTools([getPortfolioTool, sellPropertyTool]);
     const response = await portfolioLlm.invoke([
         new SystemMessage(PORTFOLIO_AGENT_SYSTEM_PROMPT + `\n\nCurrent User ID provided by system: ${userId}`),
         lastMessage
     ]);
 
     if (response.tool_calls && response.tool_calls.length > 0) {
-        const toolCall = response.tool_calls[0];
-        if (toolCall.name === 'get_portfolio_stats') {
+        const toolMessages = [];
+        for (const toolCall of response.tool_calls) {
             // Ensure userId is passed if the LLM missed it (though prompt should ensure it)
             if (!toolCall.args.userId) {
                 toolCall.args.userId = userId;
             }
 
-            const toolResult = await getPortfolioTool.invoke(toolCall.args);
+            let toolResult;
+            if (toolCall.name === 'get_portfolio_stats') {
+                toolResult = await getPortfolioTool.invoke(toolCall.args as any);
+            } else if (toolCall.name === 'sell_property') {
+                toolResult = await sellPropertyTool.invoke(toolCall.args as any);
+            }
 
-            const toolMessage = new ToolMessage({
+            toolMessages.push(new ToolMessage({
                 tool_call_id: toolCall.id!,
                 content: typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult),
                 name: toolCall.name
-            });
-
-            const finalResponse = await llm.invoke([
-                new SystemMessage(PORTFOLIO_AGENT_SYSTEM_PROMPT),
-                lastMessage,
-                response,
-                toolMessage
-            ]);
-            return { messages: [finalResponse], next: END };
+            }));
         }
+
+        const finalResponse = await llm.invoke([
+            new SystemMessage(PORTFOLIO_AGENT_SYSTEM_PROMPT),
+            lastMessage,
+            response,
+            ...toolMessages
+        ]);
+        return { messages: [finalResponse], next: END };
     }
 
     return { messages: [response], next: END };

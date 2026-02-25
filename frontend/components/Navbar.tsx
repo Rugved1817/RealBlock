@@ -9,7 +9,7 @@ import WalletModal from '@/components/WalletModal';
 export default function Navbar() {
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
-    const [wallet, setWallet] = useState<{ balance: number; currency: string } | null>(null);
+    const [wallet, setWallet] = useState<{ balance: number; currency: string }>({ balance: 0, currency: 'INR' });
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
@@ -20,32 +20,7 @@ export default function Navbar() {
 
     const [isWalletOpen, setIsWalletOpen] = useState(false);
 
-    useEffect(() => {
-        const fetchWallet = async () => {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            try {
-                const response = await fetch('http://localhost:4000/api/auth/wallet', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setWallet(data.result?.data || data);
-                }
-            } catch (error) {
-                console.error('Error fetching wallet:', error);
-            }
-        };
-
-        if (user) {
-            fetchWallet();
-        }
-    }, [user]);
-
-    const refreshWallet = async () => {
+    const fetchWallet = async () => {
         const token = localStorage.getItem('token');
         if (!token) return;
 
@@ -57,12 +32,24 @@ export default function Navbar() {
             });
             if (response.ok) {
                 const data = await response.json();
-                setWallet(data.result?.data || data);
+                // Handle both tRPC result structure and direct OpenAPI structure
+                const walletInfo = data.result?.data || data;
+                if (walletInfo && typeof walletInfo.balance === 'number') {
+                    setWallet(walletInfo);
+                }
             }
         } catch (error) {
-            console.error('Error refreshing wallet:', error);
+            console.error('Error fetching wallet:', error);
         }
     };
+
+    useEffect(() => {
+        if (user) {
+            fetchWallet();
+        }
+    }, [user]);
+
+    const refreshWallet = fetchWallet;
 
     return (
         <header className="bg-white border-b border-[#E2E8F0] sticky top-0 z-50 shadow-sm/5">
@@ -119,38 +106,36 @@ export default function Navbar() {
                     <div className="flex items-center gap-4">
                         {user ? (
                             <>
-                                {wallet && (
-                                    <>
-                                        <button
-                                            onClick={() => setIsWalletOpen(true)}
-                                            className="hidden sm:flex items-center gap-3 bg-[#F8FAFC] px-4 py-2 rounded-full border border-[#E2E8F0] mr-2 transition-all hover:bg-white hover:shadow-md cursor-pointer group"
-                                        >
-                                            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
-                                                    <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
-                                                    <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
-                                                </svg>
+                                <>
+                                    <button
+                                        onClick={() => setIsWalletOpen(true)}
+                                        className="hidden sm:flex items-center gap-3 bg-[#F8FAFC] px-4 py-3 rounded-full border border-[#E2E8F0] mr-2 transition-all hover:bg-white hover:shadow-md cursor-pointer group"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+                                                <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+                                                <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+                                            </svg>
+                                        </div>
+                                        <div className="flex flex-col items-start leading-none">
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-0.5">Wallet</span>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                                                <span className="text-sm font-black text-[#0F172A] tracking-tight">
+                                                    {new Intl.NumberFormat('en-IN', { style: 'currency', currency: wallet.currency || 'INR', maximumFractionDigits: 0 }).format(wallet.balance)}
+                                                </span>
                                             </div>
-                                            <div className="flex flex-col items-start leading-none">
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Wallet</span>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                                                    <span className="text-sm font-bold text-[#0F172A] tracking-tight">
-                                                        {new Intl.NumberFormat('en-IN', { style: 'currency', currency: wallet.currency || 'INR', maximumFractionDigits: 0 }).format(wallet.balance)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </button>
-                                        <WalletModal
-                                            isOpen={isWalletOpen}
-                                            onClose={() => setIsWalletOpen(false)}
-                                            onUpdate={refreshWallet}
-                                            currentBalance={wallet.balance}
-                                            currency={wallet.currency}
-                                        />
-                                    </>
-                                )}
+                                        </div>
+                                    </button>
+                                    <WalletModal
+                                        isOpen={isWalletOpen}
+                                        onClose={() => setIsWalletOpen(false)}
+                                        onUpdate={refreshWallet}
+                                        currentBalance={wallet.balance}
+                                        currency={wallet.currency}
+                                    />
+                                </>
                                 <ProfileDropdown user={user} />
                             </>
                         ) : (
