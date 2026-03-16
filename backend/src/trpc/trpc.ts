@@ -7,7 +7,7 @@ import prisma from '../prisma/client.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 export type Context = {
-    user?: { id: string; email: string };
+    user?: { id: string; email: string; role: string };
 };
 
 export const createContext = async ({
@@ -16,42 +16,32 @@ export const createContext = async ({
 }: CreateExpressContextOptions): Promise<Context> => {
     const authHeader = req.headers.authorization;
     if (authHeader) {
-        // Extract token: handle both "Bearer token" and "token" formats
         const token = authHeader.startsWith('Bearer ')
             ? authHeader.substring(7)
             : authHeader;
 
-        // For test tokens, auto-create user with that token as ID
+        // For test tokens
         if (token === 'dummy-id' || token.startsWith('test-')) {
             const emailFromToken = token + '@realblock.com';
-
             const testUser = await prisma.user.upsert({
                 where: { id: token },
                 update: {},
-                create: {
-                    id: token,
-                    email: emailFromToken,
-                    isKycVerified: false,
-                },
+                create: { id: token, email: emailFromToken, isKycVerified: false },
             });
-            return { user: { id: testUser.id, email: testUser.email } };
+            return { user: { id: testUser.id, email: testUser.email, role: (testUser as any).role || 'USER' } };
         }
 
-        // Try to verify as JWT
+        // Verify JWT
         try {
-            const decoded = jwt.verify(token, JWT_SECRET) as {
-                userId: string;
-                email: string;
-            };
+            const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
             const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
             if (user) {
-                return { user: { id: user.id, email: user.email } };
+                return { user: { id: user.id, email: user.email, role: (user as any).role || 'USER' } };
             }
         } catch {
-            // If JWT verification fails, try as user ID (backward compatibility)
             const user = await prisma.user.findUnique({ where: { id: token } });
             if (user) {
-                return { user: { id: user.id, email: user.email } };
+                return { user: { id: user.id, email: user.email, role: (user as any).role || 'USER' } };
             }
         }
     }
@@ -65,14 +55,18 @@ export const publicProcedure = t.procedure;
 
 export const protectedProcedure = t.procedure.use(async (opts) => {
     if (!opts.ctx.user) {
-        throw new TRPCError({
-            code: 'UNAUTHORIZED',
-            message: 'You must be logged in to access this resource',
-        });
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'You must be logged in to access this resource' });
     }
-    return opts.next({
-        ctx: {
-            user: opts.ctx.user,
-        },
-    });
+    return opts.next({ ctx: { user: opts.ctx.user } });
+});
+
+// Admin-only: throws 403 if user role is not ADMIN
+export const adminProcedure = t.procedure.use(async (opts) => {
+    if (!opts.ctx.user) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'You must be logged in' });
+    }
+    if (opts.ctx.user.role !== 'ADMIN') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin access required' });
+    }
+    return opts.next({ ctx: { user: opts.ctx.user } });
 });

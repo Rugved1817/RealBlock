@@ -9,18 +9,24 @@ datasource db {
 
 // ... (User)
 model User {
-  id            String      @id @default(uuid())
-  email         String      @unique
-  name          String?
-  password      String?
-  isKycVerified Boolean     @default(false)
-  kycProfile    KycProfile?
-  wallet        Wallet?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  transactions  Transaction[]
-  totalInvestment Float       @default(0)
-  walletAddress String?
+  id               String            @id @default(uuid())
+  email            String            @unique
+  name             String?
+  password         String?
+  role             UserRole          @default(USER)
+  isKycVerified    Boolean           @default(false)
+  kycProfile       KycProfile?
+  wallet           Wallet?
+  custodialWallet  CustodialWallet?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  transactions     Transaction[]
+  totalInvestment  Float             @default(0)
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 // ... (KycProfile)
@@ -37,6 +43,17 @@ model Wallet {
   transactions WalletTransaction[]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
+}
+
+model CustodialWallet {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  address        String   @unique
+  encryptedKey   String
+  network        String   @default("localhost")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model WalletTransaction {

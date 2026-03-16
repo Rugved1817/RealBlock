@@ -45,8 +45,7 @@ export default function AIAssistantWidget() {
     const pathname = usePathname();
     const router = useRouter();
 
-    // Do not render the floating widget if we are already on the full screen chat page
-    if (pathname === '/chat') return null;
+    // Render logic moved to bottom to prevent Hook errors
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -151,6 +150,8 @@ export default function AIAssistantWidget() {
     const handleAgentSwitch = (agentId: AgentType) => {
         // Not needed anymore
     };
+
+    if (pathname === '/chat') return null;
 
     return (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">

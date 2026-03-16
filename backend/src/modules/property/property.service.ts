@@ -1,5 +1,6 @@
 import prisma from '../../prisma/client.js';
 import { blockchainService } from '../blockchain/blockchain.service.js';
+import { custodialWalletService } from '../blockchain/custodial-wallet.service.js';
 import { ethers } from 'ethers';
 
 export class PropertyService {
@@ -57,13 +58,8 @@ export class PropertyService {
             throw new Error('Insufficient wallet balance');
         }
 
-        // Determine recipient address (Custodial Fallback if missing)
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { walletAddress: true }
-        });
-
-        const userAddress = user?.walletAddress || '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+        // Get custodial wallet address for this user (auto-creates if missing)
+        const userAddress = await custodialWalletService.getWalletAddress(userId);
 
         // 4. Create Transaction and Update Property in a database transaction
         const result = await prisma.$transaction(async (tx) => {
@@ -106,51 +102,40 @@ export class PropertyService {
             return { transaction: dbTransaction, updatedProperty };
         });
 
-        // 5. Blockchain Transaction (Asynchronous / Best Effort for this demo)
+        // 5. Always mark transaction as COMPLETED immediately (DB is source of truth in custodial model)
+        await prisma.transaction.update({
+            where: { id: result.transaction.id },
+            data: { status: 'COMPLETED' }
+        });
+        (result.transaction as any).status = 'COMPLETED';
+
+        // 6. Blockchain sync fires in the background (non-blocking — won't affect user response)
         if (property.contractAddress) {
-            try {
-                // Mock ETH value (totalCost in Wei)
-                // In production, this would involve a price feed OR the user pays directly.
-                const valueWei = ethers.utils.parseEther((totalCost / 100000).toString()).toString();
-
-                const txHash = await blockchainService.purchaseOnChain(
-                    property.contractAddress,
-                    userAddress,
-                    sqftAmount,
-                    valueWei
-                );
-
-                // Update transaction with hash and complete it
-                await prisma.transaction.update({
-                    where: { id: result.transaction.id },
-                    data: {
-                        transactionHash: txHash,
-                        status: 'COMPLETED'
-                    }
-                });
-
-                (result.transaction as any).transactionHash = txHash;
-                (result.transaction as any).status = 'COMPLETED';
-            } catch (error) {
-                console.error('Blockchain purchase failed:', error);
-                // Keep DB record but mark as failed or leave pending for manual review
-                await prisma.transaction.update({
-                    where: { id: result.transaction.id },
-                    data: { status: 'FAILED' }
-                });
-                (result.transaction as any).status = 'FAILED';
-            }
-        } else {
-            // No contract associated, just complete in DB
-            await prisma.transaction.update({
-                where: { id: result.transaction.id },
-                data: { status: 'COMPLETED' }
+            setImmediate(async () => {
+                try {
+                    const valueWei = ethers.utils.parseEther((totalCost / 100000).toString()).toString();
+                    const txHash = await blockchainService.purchaseOnChain(
+                        property.contractAddress!,
+                        userAddress,
+                        sqftAmount,
+                        valueWei
+                    );
+                    // Update with the on-chain hash once confirmed
+                    await prisma.transaction.update({
+                        where: { id: result.transaction.id },
+                        data: { transactionHash: txHash }
+                    });
+                    console.log(`✅ On-chain sync complete for transaction ${result.transaction.id}: ${txHash}`);
+                } catch (error: any) {
+                    // Log only — transaction is already COMPLETED in DB. No user impact.
+                    console.warn(`⚠️  Background blockchain sync skipped for ${result.transaction.id}: ${error?.message}`);
+                }
             });
-            (result.transaction as any).status = 'COMPLETED';
         }
 
         return result;
     }
+
 
     async sell(userId: string, propertyId: string, sqftAmount: number) {
         // 1. Fetch property

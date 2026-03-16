@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../../prisma/client.js';
 import { TRPCError } from '@trpc/server';
+import { custodialWalletService } from '../blockchain/custodial-wallet.service.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -25,6 +26,14 @@ export class AuthService {
                 isKycVerified: false,
             },
         });
+
+        // Create Bank Wallet (INR)
+        await (prisma as any).wallet.create({
+            data: { userId: user.id, balance: 0, currency: 'INR' }
+        });
+
+        // Create Custodial Blockchain Wallet (SQFT) — invisible to user
+        await custodialWalletService.createWalletForUser(user.id);
 
         return {
             id: user.id,
@@ -53,6 +62,9 @@ export class AuthService {
             { expiresIn: '7d' }
         );
 
+        // Get the custodial wallet address for this user
+        const custodialAddress = await custodialWalletService.getWalletAddress(user.id).catch(() => null);
+
         return {
             token,
             user: {
@@ -60,7 +72,8 @@ export class AuthService {
                 email: user.email,
                 name: user.name,
                 isKycVerified: user.isKycVerified,
-                walletAddress: (user as any).walletAddress,
+                role: (user as any).role || 'USER',
+                walletAddress: custodialAddress,
             },
         };
     }
@@ -80,22 +93,48 @@ export class AuthService {
     async getUserById(id: string) {
         const user = await prisma.user.findUnique({
             where: { id },
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                isKycVerified: true,
-                walletAddress: true,
-            }
+            select: { id: true, email: true, name: true, isKycVerified: true }
         });
-        return user;
+        if (!user) return null;
+
+        const custodialAddress = await custodialWalletService.getWalletAddress(id).catch(() => null);
+        return { ...user, walletAddress: custodialAddress };
     }
 
-    async updateWalletAddress(userId: string, address: string) {
-        return await prisma.user.update({
-            where: { id: userId },
-            data: { walletAddress: address } as any
+    async getSqftWallet(userId: string) {
+        const walletInfo = await custodialWalletService.getWalletInfo(userId);
+
+        // Get all COMPLETED transactions for this user
+        const transactions = await prisma.transaction.findMany({
+            where: { userId, status: 'COMPLETED' },
+            include: { property: { select: { id: true, name: true, type: true, image: true } } },
+            orderBy: { createdAt: 'desc' },
         });
+
+        // Aggregate sqft per property (BUY adds, SELL removes)
+        const holdingsMap = new Map<string, { propertyId: string; propertyName: string; propertyType: string; propertyImage: string; sqft: number }>();
+        for (const t of transactions) {
+            const existing = holdingsMap.get(t.propertyId) || {
+                propertyId: t.propertyId,
+                propertyName: t.property.name,
+                propertyType: t.property.type,
+                propertyImage: t.property.image,
+                sqft: 0,
+            };
+            const isSell = (t as any).type === 'SELL';
+            existing.sqft = isSell ? existing.sqft - t.sqft : existing.sqft + t.sqft;
+            holdingsMap.set(t.propertyId, existing);
+        }
+
+        const sqftHoldings = Array.from(holdingsMap.values()).filter(h => h.sqft > 0);
+        const totalSqft = sqftHoldings.reduce((sum, h) => sum + h.sqft, 0);
+
+        return {
+            address: walletInfo.address,
+            network: walletInfo.network,
+            sqftHoldings,
+            totalSqft,
+        };
     }
 
     async getDashboardStats(userId: string) {

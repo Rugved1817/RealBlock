@@ -27,6 +27,7 @@ export const authRouter = router({
                 email: z.string(),
                 name: z.string().nullable(),
                 isKycVerified: z.boolean(),
+                role: z.string(),
                 walletAddress: z.string().nullable(),
             }),
         }))
@@ -46,10 +47,7 @@ export const authRouter = router({
         .query(async ({ ctx }) => {
             const user = await authService.getUserById(ctx.user!.id);
             if (!user) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'User not found',
-                });
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
             }
             return user;
         }),
@@ -91,10 +89,7 @@ export const authRouter = router({
         }))
         .query(async ({ ctx }) => {
             const wallet = await authService.getWallet(ctx.user!.id);
-            return {
-                balance: wallet.balance,
-                currency: wallet.currency
-            };
+            return { balance: wallet.balance, currency: wallet.currency };
         }),
 
     addMoney: protectedProcedure
@@ -113,11 +108,22 @@ export const authRouter = router({
             return await authService.updateWalletBalance(ctx.user!.id, input.amount, 'WITHDRAWAL');
         }),
 
-    updateWalletAddress: protectedProcedure
-        .meta({ openapi: { method: 'POST', path: '/auth/wallet/address', tags: ['auth'] } })
-        .input(z.object({ address: z.string() }))
-        .output(z.any())
-        .mutation(async ({ ctx, input }) => {
-            return await authService.updateWalletAddress(ctx.user!.id, input.address);
+    // 🆕 SQFT Wallet — powers the SQFT Wallet pill in navbar and Technical Details page
+    sqftWallet: protectedProcedure
+        .meta({ openapi: { method: 'GET', path: '/auth/sqft-wallet', tags: ['auth'] } })
+        .output(z.object({
+            address: z.string(),
+            network: z.string(),
+            totalSqft: z.number(),
+            sqftHoldings: z.array(z.object({
+                propertyId: z.string(),
+                propertyName: z.string(),
+                propertyType: z.string(),
+                propertyImage: z.string(),
+                sqft: z.number(),
+            })),
+        }))
+        .query(async ({ ctx }) => {
+            return await authService.getSqftWallet(ctx.user!.id);
         }),
 });

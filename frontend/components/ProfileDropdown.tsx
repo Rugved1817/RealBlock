@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 export default function ProfileDropdown({ user: initialUser }: { user: any }) {
     const [isOpen, setIsOpen] = useState(false);
     const [user, setUser] = useState(initialUser);
+    const [sqftWallet, setSqftWallet] = useState<{ address: string; network: string; totalSqft: number } | null>(null);
+    const [copiedAddress, setCopiedAddress] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
 
@@ -39,6 +41,17 @@ export default function ProfileDropdown({ user: initialUser }: { user: any }) {
 
         if (isOpen) {
             fetchUserData();
+
+            // Also fetch SQFT wallet info
+            const token = localStorage.getItem('token');
+            if (token) {
+                fetch('http://localhost:4000/api/auth/sqft-wallet', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).then(r => r.json()).then(data => {
+                    const info = data.result?.data || data;
+                    if (info?.address) setSqftWallet(info);
+                }).catch(() => { });
+            }
         }
     }, [isOpen]);
 
@@ -103,6 +116,20 @@ export default function ProfileDropdown({ user: initialUser }: { user: any }) {
 
                         <h2 className="text-[28px] font-medium text-[#1F1F1F] mb-8">Hi, {userName}!</h2>
 
+                        {/* Admin shortcut — only visible to admins */}
+                        {user.role === 'ADMIN' && (
+                            <button
+                                onClick={() => router.push('/admin')}
+                                className="w-full flex items-center gap-3 bg-purple-50 text-purple-700 font-bold py-3 px-5 rounded-2xl border border-purple-100 hover:bg-purple-100 transition-all mb-3 text-sm active:scale-[0.98]"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                Admin Dashboard
+                            </button>
+                        )}
+
                         {/* Main Action */}
                         <button
                             onClick={() => router.push('/dashboard')}
@@ -137,6 +164,35 @@ export default function ProfileDropdown({ user: initialUser }: { user: any }) {
                                 Sign out
                             </button>
                         </div>
+
+                        {/* 🔗 Technical Details — Blockchain Section (Alt DRX style) */}
+                        {sqftWallet && (
+                            <div className="w-full mb-4 p-4 bg-[#0F172A] rounded-3xl">
+                                <div className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-3">Technical Details</div>
+                                <div className="flex items-center justify-between gap-2">
+                                    <div>
+                                        <div className="text-[10px] text-white/50 font-medium mb-1">Your Blockchain Address</div>
+                                        <div className="text-xs font-mono text-emerald-400">
+                                            {sqftWallet.address.slice(0, 10)}...{sqftWallet.address.slice(-8)}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(sqftWallet.address);
+                                            setCopiedAddress(true);
+                                            setTimeout(() => setCopiedAddress(false), 2000);
+                                        }}
+                                        className="shrink-0 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[10px] font-black transition-colors"
+                                    >
+                                        {copiedAddress ? '✓ Copied' : 'Copy'}
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+                                    <span className="text-[10px] text-white/30">{sqftWallet.totalSqft} SQFT on-chain</span>
+                                    <span className="text-[10px] text-white/30 uppercase">{sqftWallet.network}</span>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Footer Links */}
                         <div className="flex gap-4 text-[11px] text-[#444746] font-medium pt-4">
