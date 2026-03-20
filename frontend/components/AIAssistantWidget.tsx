@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Link from 'next/link';
@@ -66,11 +67,8 @@ export default function AIAssistantWidget() {
         setIsTyping(true);
 
         try {
-            const response = await fetch('http://localhost:4000/api/ai/chat', {
+            const response = await apiFetch('/api/ai/chat', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({
                     message: userMsg.text,
                     userId: '809d9e24-6390-4998-9568-a671cf741b26' // Hardcoded Test User ID from seed

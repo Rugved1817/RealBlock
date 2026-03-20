@@ -4,11 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SellModal from '@/components/SellModal';
-
-// Icon Components using SVG for consistent styling
-// ... (Icons are fine, I'll keep them in the file content I write)
-
-
+import { apiFetch } from '@/lib/api-client';
 
 interface DashboardData {
     totalInvestment: number;
@@ -50,19 +46,15 @@ export default function DashboardPage() {
 
         if (userData && token) {
             setUser(JSON.parse(userData));
-            fetchDashboardData(token);
+            fetchDashboardData();
         } else {
             router.push('/auth/login');
         }
     }, [router]);
 
-    const fetchDashboardData = async (token: string) => {
+    const fetchDashboardData = async () => {
         try {
-            const response = await fetch('http://localhost:4000/api/auth/dashboard', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const response = await apiFetch('/api/auth/dashboard');
             if (response.ok) {
                 const data = await response.json();
                 setStats(data.result?.data || data);
@@ -75,8 +67,7 @@ export default function DashboardPage() {
     };
 
     const refreshData = () => {
-        const token = localStorage.getItem('token');
-        if (token) fetchDashboardData(token);
+        fetchDashboardData();
     };
 
     if (!user) return null;
@@ -115,7 +106,6 @@ export default function DashboardPage() {
                     </div>
                 ) : (
                     <div className="space-y-8">
-                        {/* Stats Row */}
                         {/* Stats Row */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                             <div className="bg-white rounded-[24px] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
@@ -255,8 +245,8 @@ export default function DashboardPage() {
                                             { x: 840, y: 95, label: '₹8,016', date: 'APR 2024' },
                                             { x: 940, y: 85, label: '₹8,232', date: 'MAY 2024' }
                                         ].map((pt, i) => {
-                                            const x = 50 + i * 75; // Adjust spacing to fit container
-                                            const y = 220 - (i * 15); // Slope up
+                                            const x = 50 + i * 75;
+                                            const y = 220 - (i * 15);
                                             return (
                                                 <g key={i}>
                                                     <line x1={x} y1={y} x2={x} y2="280" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="4 4" />
@@ -269,7 +259,6 @@ export default function DashboardPage() {
                                             );
                                         })}
 
-                                        {/* Main Path */}
                                         <path
                                             d="M 50 220 C 125 190, 200 195, 275 185 C 350 175, 425 145, 500 145 C 575 145, 650 120, 725 85"
                                             fill="none"
@@ -322,6 +311,76 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
+                        {/* Recent Transactions Section */}
+                        <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                            <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-slate-800 tracking-tight">Recent Activity</h3>
+                                <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Download Statements</button>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-50/50">
+                                            <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Property / Asset</th>
+                                            <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
+                                            <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                            <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amount</th>
+                                            <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Receipt</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {transactions.length > 0 ? transactions.map((tx: any) => (
+                                            <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors">
+                                                <td className="px-8 py-5">
+                                                    <div className="flex items-center space-x-3">
+                                                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                                                            {tx.property?.[0] || 'P'}
+                                                        </div>
+                                                        <div className="space-y-0.5">
+                                                            <div className="text-sm font-bold text-slate-800 leading-tight">{tx.property}</div>
+                                                            <div className="text-[10px] font-bold text-slate-400">{tx.date}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-5">
+                                                    <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider ${tx.type === 'BUY' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                                        {tx.type}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-5">
+                                                    <div className="flex items-center space-x-2">
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${tx.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                                                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-tight">{tx.status}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-5 text-right font-black text-slate-800 text-sm tracking-tight">
+                                                    {tx.type === 'BUY' ? '-' : '+'} ₹{Math.abs(tx.amount).toLocaleString()}
+                                                </td>
+                                                <td className="px-8 py-5 text-center">
+                                                    {tx.hash ? (
+                                                        <a 
+                                                            href={`https://amoy.polygonscan.com/tx/${tx.hash}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 border border-slate-100 transition-all shadow-sm"
+                                                            title="View on PolygonScan"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Syncing...</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        )) : (
+                                            <tr>
+                                                <td colSpan={5} className="px-8 py-10 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No recent transactions found.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -350,5 +409,4 @@ export default function DashboardPage() {
             `}</style>
         </div>
     );
-
 }

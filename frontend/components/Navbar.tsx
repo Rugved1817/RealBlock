@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ProfileDropdown from '@/components/ProfileDropdown';
 import WalletModal from '@/components/WalletModal';
+import { apiFetch } from '@/lib/api-client';
 
 export default function Navbar() {
     const router = useRouter();
@@ -14,21 +15,30 @@ export default function Navbar() {
     const [isWalletOpen, setIsWalletOpen] = useState(false);
     const [showSqftTooltip, setShowSqftTooltip] = useState(false);
 
-    useEffect(() => {
+    const loadUser = () => {
         const userData = localStorage.getItem('user');
-        if (userData) {
-            setUser(JSON.parse(userData));
-        }
+        setUser(userData ? JSON.parse(userData) : null);
+    };
+
+    useEffect(() => {
+        // Load on mount
+        loadUser();
+
+        // Re-load whenever login/logout fires the custom event
+        window.addEventListener('auth-change', loadUser);
+        // Also handle cross-tab sign-out via native storage event
+        window.addEventListener('storage', loadUser);
+
+        return () => {
+            window.removeEventListener('auth-change', loadUser);
+            window.removeEventListener('storage', loadUser);
+        };
     }, []);
 
     const fetchWallet = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
+        // The token check is now handled within apiFetch
         try {
-            const response = await fetch('http://localhost:4000/api/auth/wallet', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await apiFetch('/api/auth/wallet');
             if (response.ok) {
                 const data = await response.json();
                 const walletInfo = data.result?.data || data;
@@ -42,13 +52,9 @@ export default function Navbar() {
     };
 
     const fetchSqftWallet = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
+        // The token check is now handled within apiFetch
         try {
-            const response = await fetch('http://localhost:4000/api/auth/sqft-wallet', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await apiFetch('/api/auth/sqft-wallet');
             if (response.ok) {
                 const data = await response.json();
                 const info = data.result?.data || data;

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-
+import { apiFetch } from '@/lib/api-client';
 
 export default function HomePage() {
     const router = useRouter();
@@ -18,7 +18,7 @@ export default function HomePage() {
 
         const fetchProperties = async () => {
             try {
-                const response = await fetch('http://localhost:4000/api/properties/featured');
+                const response = await apiFetch('/api/properties/featured');
                 if (response.ok) {
                     const data = await response.json();
                     setProperties(data);

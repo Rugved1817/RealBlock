@@ -3,6 +3,7 @@
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api-client';
 
 interface Property {
     id: string;
@@ -47,7 +48,9 @@ export default function PropertyDetailPage() {
     const [activeTab, setActiveTab] = useState('Highlights');
     const [chartRange, setChartRange] = useState('1Y');
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+    const [isSuccessOpen, setIsSuccessOpen] = useState(false);
     const [purchaseLoading, setPurchaseLoading] = useState(false);
+    const [lastTxHash, setLastTxHash] = useState<string | null>(null);
 
     useEffect(() => {
         const userData = localStorage.getItem('user');
@@ -60,7 +63,7 @@ export default function PropertyDetailPage() {
             if (!params?.id) return;
 
             try {
-                const response = await fetch(`http://localhost:4000/api/properties/${params.id}`);
+                const response = await apiFetch(`/api/properties/${params.id}`);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -108,7 +111,7 @@ export default function PropertyDetailPage() {
 
         setPurchaseLoading(true);
         try {
-            const response = await fetch(`http://localhost:4000/api/properties/${property.id}/invest`, {
+            const response = await apiFetch(`/api/properties/${property.id}/invest`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -121,22 +124,9 @@ export default function PropertyDetailPage() {
 
             if (response.ok) {
                 const txHash = result?.transaction?.transactionHash;
-                const status = result?.transaction?.status;
-
-                let successMsg = `Purchase Successful!\n\nTransaction ID: ${result?.transaction?.id}`;
-                if (txHash) {
-                    successMsg += `\nBlockchain Hash: ${txHash.slice(0, 10)}...${txHash.slice(-8)}`;
-                }
-
-                if (status === 'FAILED') {
-                    alert('Payment recorded but blockchain registration failed. Our team will resolve this manually.');
-                } else {
-                    alert(successMsg);
-                }
-
+                setLastTxHash(txHash || null);
                 setIsCheckoutOpen(false);
-                // Refresh property data
-                window.location.reload();
+                setIsSuccessOpen(true);
             } else {
                 alert('Purchase Failed: ' + (result?.message || 'Unknown error'));
             }
@@ -372,6 +362,68 @@ export default function PropertyDetailPage() {
                                     <svg className="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Audited Contract</span>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Modal Overlay */}
+            {isSuccessOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"></div>
+
+                    <div className="relative bg-white w-full max-w-[400px] rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-300">
+                        <div className="flex flex-col items-center text-center space-y-6">
+                            {/* Checkmark Icon */}
+                            <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center shadow-inner relative overflow-hidden">
+                                <div className="absolute inset-0 bg-emerald-500 opacity-10 animate-ping"></div>
+                                <svg className="w-10 h-10 text-emerald-500 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h2 className="text-2xl font-black text-slate-800 tracking-tight">Investment Verified!</h2>
+                                <p className="text-sm font-medium text-slate-500 leading-relaxed px-4">
+                                    Your <b>{sqftCount} SQFT</b> in {property.name} has been successfully registered on-chain.
+                                </p>
+                            </div>
+
+                            {/* PolygonScan Link */}
+                            {lastTxHash && (
+                                <a 
+                                    href={`${process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://amoy.polygonscan.com'}/tx/${lastTxHash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between group hover:bg-slate-100 transition-all"
+                                >
+                                    <div className="flex items-center space-x-3 text-left">
+                                        <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center font-bold text-[10px]">
+                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" /><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 100-2H5z" /></svg>
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            <div className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Blockchain Hash</div>
+                                            <div className="text-[11px] font-bold text-slate-800 font-mono tracking-tight">{lastTxHash.slice(0, 10)}...{lastTxHash.slice(-8)}</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-blue-600 text-[10px] font-black group-hover:translate-x-1 transition-transform">EXPLORE →</div>
+                                </a>
+                            )}
+
+                            <div className="w-full pt-4 space-y-3">
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="w-full bg-[#1D72E8] text-white py-4 rounded-xl font-black text-sm tracking-wide shadow-xl shadow-blue-200 hover:scale-[1.02] transition-all"
+                                >
+                                    View in Portfolio
+                                </button>
+                                <button
+                                    onClick={() => setIsSuccessOpen(false)}
+                                    className="w-full font-bold text-slate-400 text-xs hover:text-slate-600 transition-colors"
+                                >
+                                    Close
+                                </button>
                             </div>
                         </div>
                     </div>

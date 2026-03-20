@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/api-client';
 
 export default function ProfileDropdown({ user: initialUser }: { user: any }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -14,20 +15,14 @@ export default function ProfileDropdown({ user: initialUser }: { user: any }) {
     const handleLogout = () => {
         localStorage.removeItem('user');
         localStorage.removeItem('token');
-        window.location.reload();
+        window.dispatchEvent(new Event('auth-change'));
+        router.push('/');
     };
 
     useEffect(() => {
         const fetchUserData = async () => {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
             try {
-                const response = await fetch('http://localhost:4000/api/auth/me', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
+                const response = await apiFetch('/api/auth/me');
                 if (response.ok) {
                     const data = await response.json();
                     setUser(data);
@@ -43,15 +38,13 @@ export default function ProfileDropdown({ user: initialUser }: { user: any }) {
             fetchUserData();
 
             // Also fetch SQFT wallet info
-            const token = localStorage.getItem('token');
-            if (token) {
-                fetch('http://localhost:4000/api/auth/sqft-wallet', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }).then(r => r.json()).then(data => {
+            apiFetch('/api/auth/sqft-wallet')
+                .then(r => r.json())
+                .then(data => {
                     const info = data.result?.data || data;
                     if (info?.address) setSqftWallet(info);
-                }).catch(() => { });
-            }
+                })
+                .catch(() => { });
         }
     }, [isOpen]);
 

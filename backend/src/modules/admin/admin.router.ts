@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { router, adminProcedure } from '../../trpc/trpc.js';
 import prisma from '../../prisma/client.js';
+import { blockchainService } from '../blockchain/blockchain.service.js';
+import { ethers } from 'ethers';
 
 const PropertyInputSchema = z.object({
     name: z.string().min(2),
@@ -30,6 +32,7 @@ export const adminRouter = router({
         .input(PropertyInputSchema)
         .output(z.any())
         .mutation(async ({ input }) => {
+            // 1. Create property in DB first to get an ID
             const property = await prisma.property.create({
                 data: {
                     ...input,
@@ -38,7 +41,34 @@ export const adminRouter = router({
                     sqftSold: 0,
                 },
             });
-            return property;
+
+            // 2. Automate Blockchain Deployment
+            try {
+                // Generate a simple symbol (e.g. SKY-SQFT)
+                const symbol = input.name.split(' ').map(w => w[0]).join('').toUpperCase() + '-SQFT';
+                
+                // Convert price to Wei (Assuming 1 MATIC = 100,000 INR for uniform scaling)
+                const priceInMatic = (input.pricePerSqft / 100000);
+                const priceWei = ethers.utils.parseEther(priceInMatic.toFixed(8)).toString();
+
+                console.log(`🤖 Auto-deploying contract for ${input.name}...`);
+                const contractAddress = await blockchainService.deployPropertyToken(
+                    input.name,
+                    symbol,
+                    input.totalSqft,
+                    priceWei
+                );
+
+                // 3. Update DB with Address
+                return await prisma.property.update({
+                    where: { id: property.id },
+                    data: { contractAddress }
+                });
+
+            } catch (err: any) {
+                console.warn(`⚠️ Blockchain auto-deploy failed: ${err.message}. Admin will need to link address manually.`);
+                return property;
+            }
         }),
 
     updateProperty: adminProcedure

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/api-client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AdminStats { totalUsers: number; totalProperties: number; totalTransactions: number; totalVolume: number; }
@@ -10,8 +11,6 @@ interface Transaction { id: string; amount: number; sqft: number; status: string
 interface User { id: string; name: string | null; email: string; role: string; isKycVerified: boolean; totalInvestment: number; createdAt: string; }
 
 type Tab = 'overview' | 'properties' | 'transactions' | 'users';
-
-const BASE = 'http://localhost:4000/api';
 
 export default function AdminDashboard() {
     const router = useRouter();
@@ -31,9 +30,6 @@ export default function AdminDashboard() {
         highlights: '',
     });
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-
     const checkAdmin = () => {
         const u = localStorage.getItem('user');
         if (!u) { router.push('/auth/login'); return false; }
@@ -46,12 +42,20 @@ export default function AdminDashboard() {
         if (!checkAdmin()) return;
         setLoading(true);
         try {
-            const [s, p, t, u] = await Promise.all([
-                fetch(`${BASE}/admin/stats`, { headers }).then(r => r.json()),
-                fetch(`${BASE}/properties`, { headers }).then(r => r.json()),
-                fetch(`${BASE}/admin/transactions`, { headers }).then(r => r.json()),
-                fetch(`${BASE}/admin/users`, { headers }).then(r => r.json()),
+            const [sRes, pRes, tRes, uRes] = await Promise.all([
+                apiFetch('/api/admin/stats'),
+                apiFetch('/api/properties'),
+                apiFetch('/api/admin/transactions'),
+                apiFetch('/api/admin/users'),
             ]);
+            
+            const [s, p, t, u] = await Promise.all([
+                sRes.json(),
+                pRes.json(),
+                tRes.json(),
+                uRes.json()
+            ]);
+
             setStats(s.result?.data || s);
             setProperties(p.result?.data || p || []);
             setTransactions(t.result?.data || t || []);
@@ -66,8 +70,8 @@ export default function AdminDashboard() {
         e.preventDefault();
         setAddLoading(true); setAddError('');
         try {
-            const res = await fetch(`${BASE}/admin/properties`, {
-                method: 'POST', headers,
+            const res = await apiFetch('/api/admin/properties', {
+                method: 'POST',
                 body: JSON.stringify({
                     ...form,
                     totalSqft: parseFloat(form.totalSqft),
@@ -85,12 +89,15 @@ export default function AdminDashboard() {
 
     const handleDeleteProperty = async (id: string) => {
         if (!confirm('Delete this property?')) return;
-        await fetch(`${BASE}/admin/properties/${id}`, { method: 'DELETE', headers });
+        await apiFetch(`/api/admin/properties/${id}`, { method: 'DELETE' });
         fetchAll();
     };
 
     const handleSetRole = async (id: string, role: string) => {
-        await fetch(`${BASE}/admin/users/${id}/role`, { method: 'PATCH', headers, body: JSON.stringify({ id, role }) });
+        await apiFetch(`/api/admin/users/${id}/role`, { 
+            method: 'PATCH', 
+            body: JSON.stringify({ id, role }) 
+        });
         fetchAll();
     };
 

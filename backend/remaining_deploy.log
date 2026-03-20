@@ -1,0 +1,15 @@
+[dotenv@17.3.1] injecting env (14) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+🚀 Deployer: 0x6E73Fe9eeF775322e80C478Cb2f003E5648e75Ca | Balance: 149.17356383960887773 MATIC
+
+📦 Deploying: Meridian Tech Park (MTP-SQFT)
+   ⏳ Transaction: 0x66a3dd2c3ef3f720920d0855dd96f15c6c9e31e6e519c8f2d4d784bb36421296
+   ✅ Success at Address: 0x388EC8DC4fC23992461a8A0ae79dF4F42a3c2eb9
+
+📦 Deploying: Coastal Warehouse Hub (CWH-SQFT)
+   ⏳ Transaction: 0x1a40cf530690101ccc45dbaf2a278909e5fcdbe9195dbfbda9d611a1dc672dc2
+   ✅ Success at Address: 0x1Ed72e865F3410bA8edB3A256d0EB6B72877C27d
+
+Deployment Results: {
+  "Meridian Tech Park": "0x388EC8DC4fC23992461a8A0ae79dF4F42a3c2eb9",
+  "Coastal Warehouse Hub": "0x1Ed72e865F3410bA8edB3A256d0EB6B72877C27d"
+}

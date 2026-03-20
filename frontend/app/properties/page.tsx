@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api-client';
 
 
 interface Property {
@@ -33,7 +34,7 @@ export default function PropertiesPage() {
 
         const fetchProperties = async () => {
             try {
-                const response = await fetch('http://localhost:4000/api/properties');
+                const response = await apiFetch('/api/properties');
                 if (response.ok) {
                     const data = await response.json();
                     setProperties(data);

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api-client';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -26,9 +27,8 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:4000/api/auth/login', {
+            const response = await apiFetch('/api/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
             });
 
@@ -38,6 +38,8 @@ export default function LoginPage() {
                 const responseData = data.result?.data || data;
                 localStorage.setItem('token', responseData.token);
                 localStorage.setItem('user', JSON.stringify(responseData.user));
+                // Notify all components (Navbar etc.) that auth state changed
+                window.dispatchEvent(new Event('auth-change'));
                 router.push('/');
             } else {
                 setError(data.message || data.error?.message || 'Login failed');

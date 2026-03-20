@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 
 interface WalletModalProps {
     isOpen: boolean;
@@ -35,13 +36,11 @@ export default function WalletModal({ isOpen, onClose, onUpdate, currentBalance,
         }
 
         try {
-            const token = localStorage.getItem('token');
             const endpoint = activeTab === 'DEPOSIT' ? 'add' : 'withdraw';
-            const response = await fetch(`http://localhost:4000/api/auth/wallet/${endpoint}`, {
+            const response = await apiFetch(`/api/auth/wallet/${endpoint}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ amount: amountNum })
             });

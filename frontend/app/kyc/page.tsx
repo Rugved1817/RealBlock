@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api-client';
 
 export default function KYCPage() {
     const router = useRouter();
@@ -37,13 +38,8 @@ export default function KYCPage() {
         setMessage('');
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:4000/api/kyc/pan-verify', {
+            const response = await apiFetch('/api/kyc/pan-verify', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
                 body: JSON.stringify({ panNumber, name }),
             });
 
@@ -76,13 +72,8 @@ export default function KYCPage() {
         setMessage('');
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:4000/api/auth/wallet/address', {
+            const response = await apiFetch('/api/auth/wallet/address', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
                 body: JSON.stringify({ address: walletAddress }),
             });
 

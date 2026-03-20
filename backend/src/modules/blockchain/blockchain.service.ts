@@ -36,9 +36,19 @@ export class BlockchainService {
      * Deploys a new property token contract.
      */
     async deployPropertyToken(name: string, symbol: string, totalSqft: number, pricePerSqftWei: string) {
-        const factory = new ethers.ContractFactory(ABI, abiData.bytecode, this.getWallet());
-        const contract = await factory.deploy(name, symbol, totalSqft, pricePerSqftWei);
+        console.log(`🚀 Deploying new contract for ${name}...`);
+        const bytecode = abiData.bytecode || (abiData as any).data?.bytecode?.object;
+        const factory = new ethers.ContractFactory(ABI, bytecode, this.getWallet());
+        
+        const contract = await factory.deploy(name, symbol, totalSqft, pricePerSqftWei, {
+            maxPriorityFeePerGas: ethers.utils.parseUnits("50", "gwei"),
+            maxFeePerGas: ethers.utils.parseUnits("70", "gwei"),
+            gasLimit: 3000000 // Upped to 3M because initial minting happens in constructor
+        });
+        
+        console.log(`⏳ Waiting for deployment: ${contract.deployTransaction.hash}`);
         await contract.deployed();
+        console.log(`✅ Success! Contract Address: ${contract.address}`);
         return contract.address;
     }
 
@@ -54,10 +64,25 @@ export class BlockchainService {
      * Called asynchronously in the background — never blocks the API response.
      */
     async purchaseOnChain(contractAddress: string, userAddress: string, amount: number, valueWei: string) {
+        console.log(`🔗 Initiating on-chain sync for ${userAddress} at ${contractAddress}...`);
         const contract = this.getContract(contractAddress);
-        const tx = await contract.buyTokensFor(userAddress, amount, { value: valueWei });
-        const receipt = await tx.wait();
-        return receipt.transactionHash;
+        
+        try {
+            // Polygon Amoy needs higher gas prices as of recently
+            const tx = await contract.buyTokensFor(userAddress, amount, {
+                value: valueWei,
+                maxPriorityFeePerGas: ethers.utils.parseUnits("50", "gwei"),
+                maxFeePerGas: ethers.utils.parseUnits("70", "gwei"),
+                gasLimit: 800000 // Ensure we have enough gas for the internal minting
+            });
+            console.log(`⏳ On-chain transaction broadcasted: ${tx.hash}`);
+            const receipt = await tx.wait();
+            console.log(`✅ Transaction confirmed in block ${receipt.blockNumber}`);
+            return receipt.transactionHash;
+        } catch (error: any) {
+            console.error(`❌ Blockchain sync error details:`, error.message);
+            throw error;
+        }
     }
 }
 

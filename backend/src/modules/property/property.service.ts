@@ -109,28 +109,30 @@ export class PropertyService {
         });
         (result.transaction as any).status = 'COMPLETED';
 
-        // 6. Blockchain sync fires in the background (non-blocking — won't affect user response)
+        // 6. Blockchain sync (Wait for confirmation so frontend gets the hash)
         if (property.contractAddress) {
-            setImmediate(async () => {
-                try {
-                    const valueWei = ethers.utils.parseEther((totalCost / 100000).toString()).toString();
-                    const txHash = await blockchainService.purchaseOnChain(
-                        property.contractAddress!,
-                        userAddress,
-                        sqftAmount,
-                        valueWei
-                    );
-                    // Update with the on-chain hash once confirmed
-                    await prisma.transaction.update({
-                        where: { id: result.transaction.id },
-                        data: { transactionHash: txHash }
-                    });
-                    console.log(`✅ On-chain sync complete for transaction ${result.transaction.id}: ${txHash}`);
-                } catch (error: any) {
-                    // Log only — transaction is already COMPLETED in DB. No user impact.
-                    console.warn(`⚠️  Background blockchain sync skipped for ${result.transaction.id}: ${error?.message}`);
-                }
-            });
+            try {
+                const valueWei = ethers.utils.parseEther((totalCost / 100000).toString()).toString();
+                const txHash = await blockchainService.purchaseOnChain(
+                    property.contractAddress!,
+                    userAddress,
+                    sqftAmount,
+                    valueWei
+                );
+                
+                // Update with the on-chain hash
+                await prisma.transaction.update({
+                    where: { id: result.transaction.id },
+                    data: { transactionHash: txHash }
+                });
+                
+                (result.transaction as any).transactionHash = txHash;
+                console.log(`✅ On-chain sync complete for transaction ${result.transaction.id}: ${txHash}`);
+            } catch (error: any) {
+                console.warn(`⚠️ Blockchain sync failed for ${result.transaction.id}: ${error?.message}`);
+                // We keep the DB transaction as COMPLETED because the payment was internal, 
+                // but the hash remains null if it failed.
+            }
         }
 
         return result;

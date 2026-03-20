@@ -1,0 +1,43 @@
+[dotenv@17.3.1] injecting env (14) from .env -- tip: ⚙️  override existing env vars with { override: true }
+🚀 Starting Global Deployment | Wallet: 0x6E73Fe9eeF775322e80C478Cb2f003E5648e75Ca
+💰 Balance: 148.99367633938221948 MATIC
+
+📦 Deploying: Lakeview Residency...
+   ⏳ Transaction broadcasted: 0xa126afca24a5e358912ca68a97d6fb916e2a433d5a5b3c2f0c71c8a5b7484b0e
+   ✅ Success! Address: 0x9447CB43A609D09396793FfD5d117655Fc42dcF0
+
+📦 Deploying: North Logistics Hub...
+   ⏳ Transaction broadcasted: 0xf1b60eb3154e6a9fc692c608c6b0ac1bb3e9e2671d0c059c342057281ae36718
+   ✅ Success! Address: 0x7eFE5D722d873210948e64369De787f316EEDe5d
+
+📦 Deploying: Azure Heights Phase 2...
+   ⏳ Transaction broadcasted: 0x5fc228f81b5cab98634768a790b7ea2fd1a815ad5a1e7452634c818a99c6c20f
+   ✅ Success! Address: 0x39B19FeA3d5c01B0B1536622766E9746BE42995a
+
+📦 Deploying: Westside Logistics Park...
+   ⏳ Transaction broadcasted: 0xb65af1bbf731737343451a5c07421865815a9a2510f1044dc231cb38ed360331
+   ✅ Success! Address: 0xB24e227A4df313444d915497c9965Df6F4c1Dcdd
+
+📦 Deploying: Metro City Plaza...
+   ⏳ Transaction broadcasted: 0x7ff689e8a945f939291314bca8056ca3ffe612c0133e098da68a1279051a2ffa
+   ✅ Success! Address: 0x4A776df434520BAAc91eFdb04E404C4Ca853D686
+
+📦 Deploying: Skyline Office Complex...
+   ⏳ Transaction broadcasted: 0xb7ea6cc9d6148188d5f924a875e6a865191d19aeb832df19a93d5c5e9252f396
+   ✅ Success! Address: 0xe8Dc57A45295aF2679d8d4A23e6B5AA80C9aC74A
+
+📦 Deploying: Tech Hub II...
+   ⏳ Transaction broadcasted: 0x216d75987852276f9c960559adf8b2e83211fc5cec7c5b20c0db42242cb8797d
+   ✅ Success! Address: 0x3b13b817EACa1CFe6E193dD5e9d9d2D393662D10
+
+
+✨ BATCH DEPLOYMENT FINISHED ✨
+{
+  "Lakeview Residency": "0x9447CB43A609D09396793FfD5d117655Fc42dcF0",
+  "North Logistics Hub": "0x7eFE5D722d873210948e64369De787f316EEDe5d",
+  "Azure Heights Phase 2": "0x39B19FeA3d5c01B0B1536622766E9746BE42995a",
+  "Westside Logistics Park": "0xB24e227A4df313444d915497c9965Df6F4c1Dcdd",
+  "Metro City Plaza": "0x4A776df434520BAAc91eFdb04E404C4Ca853D686",
+  "Skyline Office Complex": "0xe8Dc57A45295aF2679d8d4A23e6B5AA80C9aC74A",
+  "Tech Hub II": "0x3b13b817EACa1CFe6E193dD5e9d9d2D393662D10"
+}

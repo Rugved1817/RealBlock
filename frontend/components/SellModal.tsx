@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 
 interface SellModalProps {
     isOpen: boolean;
@@ -40,7 +41,6 @@ export default function SellModal({ isOpen, onClose, onSuccess, asset }: SellMod
         }
 
         try {
-            const token = localStorage.getItem('token');
             const userData = localStorage.getItem('user');
             const user = userData ? JSON.parse(userData) : null;
 
@@ -50,12 +50,8 @@ export default function SellModal({ isOpen, onClose, onSuccess, asset }: SellMod
                 return;
             }
 
-            const response = await fetch(`http://localhost:4000/api/properties/${asset.id}/sell`, {
+            const response = await apiFetch(`/api/properties/${asset.id}/sell`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
                 body: JSON.stringify({
                     id: asset.id,
                     userId: user.id,
